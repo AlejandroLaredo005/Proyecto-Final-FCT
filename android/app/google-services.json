@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "738236061985",
+    "project_id": "control-de-medicacion",
+    "storage_bucket": "control-de-medicacion.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:738236061985:android:bedb7f2bd1c0383cb14660",
+        "android_client_info": {
+          "package_name": "com.example.proyecto_final_alejandro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCPiP1wWELCi6qdW3fem3I3MWnX15C9X4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
