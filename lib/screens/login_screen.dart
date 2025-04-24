@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
         emailController.text.trim(),
         passwordController.text.trim(),
       );
-      // Aquí debo redirigir a la pantalla principal tras iniciar sesión
+      Navigator.pushReplacementNamed(context, AppRoutes.recordatorios);
     } catch (e) {
       setState(() {
         _error = e.toString();
