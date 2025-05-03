@@ -58,6 +58,7 @@ class NotificationService {
     required DateTime scheduledDate,
   }) async {
     try {
+      debugPrint('▶️ [NotificationService] Scheduling id=$id at $scheduledDate');
       final tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         id,
@@ -73,13 +74,13 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      debugPrint('Scheduled notification id=$id at $scheduledDate');
+      debugPrint('   — scheduleNotification COMPLETED id=$id');
     } catch (e, s) {
-      debugPrint('Error in scheduleNotification: $e');
+      debugPrint('❌ [NotificationService] Error scheduleNotification: $e');
       debugPrint('$s');
     }
   }

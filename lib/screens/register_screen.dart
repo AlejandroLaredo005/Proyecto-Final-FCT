@@ -12,36 +12,53 @@ class RegistroScreen extends StatefulWidget {
 class _RegistroScreenState extends State<RegistroScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmController = TextEditingController();
+
   bool _loading = false;
   String _error = '';
 
   void _registrar() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmController.text;
+
     setState(() {
-      _loading = true;
       _error = '';
     });
 
-    try {
-      await AuthService().registerWithEmail(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-      AppRoutes.inicioSesion;
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      setState(() {
-        _loading = false;
-      });
+    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      setState(() => _error = 'Completa todos los campos');
+      return;
     }
+    if (password != confirm) {
+      setState(() => _error = 'Las contraseñas no coinciden');
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await AuthService().registerWithEmail(email, password);
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, AppRoutes.inicioSesion);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Registrarse")),
+      appBar: AppBar(title: const Text('Registrarse')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -51,9 +68,16 @@ class _RegistroScreenState extends State<RegistroScreen> {
               decoration: const InputDecoration(labelText: 'Correo electrónico'),
               keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               decoration: const InputDecoration(labelText: 'Contraseña'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _confirmController,
+              decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
               obscureText: true,
             ),
             const SizedBox(height: 16),
@@ -62,18 +86,27 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 _error,
                 style: const TextStyle(color: Colors.red),
               ),
-            ElevatedButton(
-              onPressed: _loading ? null : _registrar,
-              child: _loading
-                  ? const CircularProgressIndicator()
-                  : const Text("Registrarse"),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _registrar,
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Registrarse'),
+              ),
             ),
             const SizedBox(height: 10),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("¿Ya tienes cuenta? Inicia sesión"),
+              onPressed: _loading ? null : () => Navigator.pop(context),
+              child: const Text('¿Ya tienes cuenta? Inicia sesión'),
             ),
           ],
         ),

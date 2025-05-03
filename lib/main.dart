@@ -12,7 +12,9 @@ import 'package:proyecto_final_alejandro/service/notification_service.dart';
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
+  debugPrint('▶️ [main] Antes de init notifications');
   await NotificationService().init();
+  debugPrint('▶️ [main] Después de init notifications');
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/auth_service.dart';
 
@@ -37,6 +38,32 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await _authService.signInWithGoogle();
+      Navigator.pushReplacementNamed(context, AppRoutes.recordatorios);
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -85,6 +112,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text('Iniciar sesión'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Divider(color: Colors.grey[300], thickness: 1),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.google, color: Colors.red),
+                    label: const Text('Continuar con Google'),
+                    onPressed: _isLoading ? null : _signInWithGoogle,
                   ),
                 ),
                 const SizedBox(height: 24),

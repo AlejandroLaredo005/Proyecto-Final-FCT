@@ -12,7 +12,20 @@
           "package_name": "com.example.proyecto_final_alejandro"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "738236061985-fpnuvn7voj73eb4bg26hftnv87u5bree.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.proyecto_final_alejandro",
+            "certificate_hash": "8480b9c95bce107060d35be3a8de9401404b96cb"
+          }
+        },
+        {
+          "client_id": "738236061985-5pvfc61ej8poibcn5b7pff1fu55shbpg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDCPiP1wWELCi6qdW3fem3I3MWnX15C9X4"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "738236061985-5pvfc61ej8poibcn5b7pff1fu55shbpg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

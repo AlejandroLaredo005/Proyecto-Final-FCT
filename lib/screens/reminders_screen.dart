@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/notification_service.dart';
 
 class RemindersScreen extends StatefulWidget {
@@ -270,20 +271,49 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recordatorios'),
+        leading: IconButton(
+          icon: const Icon(Icons.person),
+          tooltip: 'Ver perfil',
+          onPressed: () {
+            Navigator.pushNamed(context, AppRoutes.perfil);
+          },
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'Test Noti 5s',
-            onPressed: () {
+            icon: const Icon(Icons.flash_on),
+            tooltip: 'Test Noti',
+            onPressed: () async {
+              debugPrint('▶️ [Reminders] Test inmediato pulsado');
+              try {
+                await NotificationService().showNotification(
+                  id: 999,
+                  title: '🚀 Test Ahora',
+                  body: 'Comprueba si se dispara esta notif.',
+                );
+                debugPrint('   — showNotification completado');
+              } catch (e, s) {
+                debugPrint('❌ Error en showNotification: $e\n$s');
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Disparando test inmediato...')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.schedule_send),
+            tooltip: 'Test programado 5s',
+            onPressed: () async {
               final inFive = DateTime.now().add(const Duration(seconds: 5));
-              NotificationService().scheduleNotification(
-                id: 222,
-                title: '¡Test rápido!',
-                body: 'Si ves esto, las notificaciones funcionan.',
+              debugPrint('▶️ [Reminders] Test programado pulsado');
+              await NotificationService().scheduleNotification(
+                id: 888,
+                title: '⏰ Test programado',
+                body: 'Esta notificación debe saltar en 5 s',
                 scheduledDate: inFive,
               );
+              debugPrint('   — Test programado finished call');
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notificación de prueba en 5s')),
+                const SnackBar(content: Text('Notificación programada en 5 s')),
               );
             },
           ),
