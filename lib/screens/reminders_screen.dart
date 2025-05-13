@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:proyecto_final_alejandro/background_task.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/notification_service.dart';
+import 'package:workmanager/workmanager.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
@@ -14,6 +16,7 @@ class RemindersScreen extends StatefulWidget {
 class _RemindersScreenState extends State<RemindersScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _titleController = TextEditingController();
+  bool _showCompleted = false;
 
   @override
   void dispose() {
@@ -21,43 +24,112 @@ class _RemindersScreenState extends State<RemindersScreen> {
     super.dispose();
   }
 
-  Future<void> _addReminder(DateTime dateTime) async {
+  Future<void> _addReminder(DateTime firstDateTime, String recurrence, DateTime? endDate, int customIntervalDays) async {
     final String title = _titleController.text.trim();
     if (title.isEmpty) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    await _firestore.collection('reminders').add({
-      'title': title,
-      'timestamp': dateTime,
-      'userId': user?.uid,
-    });
 
-    _titleController.clear();
+    // Determinar cuántas semanas generar
+    List<DateTime> dates = [];
+    if (recurrence == 'weekly' && endDate != null) {
+      var cursor = firstDateTime;
+      while (!cursor.isAfter(endDate)) {
+        dates.add(cursor);
+        cursor = cursor.add(const Duration(days: 7));
+      }
+    } else if (recurrence == 'daily' && endDate != null){
+        var cursor = firstDateTime;
+        while (!cursor.isAfter(endDate)) {
+          dates.add(cursor);
+          cursor = cursor.add(const Duration(days: 1));
+        }
+    } else if (recurrence == 'custom' && endDate != null) {
+        var cursor = firstDateTime;
+        while (!cursor.isAfter(endDate)) {
+          dates.add(cursor);
+          cursor = cursor.add(Duration(days: customIntervalDays));
+        }
+    } else {
+        dates.add(firstDateTime);
+    }
 
-    final int notificationId = dateTime.millisecondsSinceEpoch ~/ 1000;
-    await NotificationService().scheduleNotification(
-      id: notificationId,
-      title: 'Recordatorio: $title',
-      body: 'Es hora de: $title',
-      scheduledDate: dateTime,
-    );
-  }
-
-  Future<void> _updateReminder(String reminderId, DateTime newDateTime, String newTitle) async {
-    try {
-      await _firestore.collection('reminders').doc(reminderId).update({
-        'title': newTitle,
-        'timestamp': newDateTime,
+    for (var dt in dates) {
+      // Añade el recordatorio y captura la referencia
+      final docRef = await _firestore.collection('reminders').add({
+        'title': title,
+        'timestamp': dt,
+        'userId': user?.uid,
+        'completed': false,
       });
 
-      // Actualizar notificación si es necesario (si cambian la fecha/hora)
-      final int notificationId = newDateTime.millisecondsSinceEpoch ~/ 1000;
-      await NotificationService().scheduleNotification(
-        id: notificationId,
-        title: 'Recordatorio actualizado: $newTitle',
-        body: 'Es hora de: $newTitle',
-        scheduledDate: newDateTime,
+      // Identificadores únicos para cada noti
+      final baseId = dt.millisecondsSinceEpoch ~/ 1000;
+      final followUpId = baseId + 1; // distinto del principal
+
+      // Datos comunes para inputData
+      final commonData = {
+        'docId': docRef.id,   
+        'title': title,
+      };
+      
+      // A) Notificación principal en dt
+      final delay = dt.difference(DateTime.now());
+      Workmanager().registerOneOffTask(
+        baseId.toString(),  // unique name
+        notificationTask,
+        initialDelay: delay.isNegative ? Duration.zero : delay,
+        inputData: {
+          ...commonData,
+          'id':   baseId,
+          'title': 'Recordatorio: $title',
+          'body':  'Es hora de: $title',
+        },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
+
+      // B) Notificación de seguimiento 10 minutos despues
+      final followUpTime = dt.add(const Duration(minutes: 10));
+      Workmanager().registerOneOffTask(
+        followUpId.toString(),
+        notificationTask,
+        initialDelay: followUpTime.difference(DateTime.now()).isNegative
+            ? Duration.zero
+            : followUpTime.difference(DateTime.now()),
+        inputData: {
+          ...commonData,
+          'id':    followUpId,
+          'title': '🔔 Recordatorio pendiente: $title',
+          'body':  'Si no has completado "$title", aún estás a tiempo',
+        },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
+      );
+    }
+
+    _titleController.clear();
+  }
+
+  Future<void> _updateReminder(String reminderId, DateTime newDateTime, String newTitle, {bool? completed}) async {
+    try {
+      final data = {
+        'title': newTitle,
+        'timestamp': newDateTime,
+      };
+      if (completed != null) {
+        data['completed'] = completed;
+      }
+      await _firestore.collection('reminders').doc(reminderId).update(data);
+
+      // Actualizar notificación si es necesario (si cambian la fecha/hora)
+      if (completed == null){
+        final int notificationId = newDateTime.millisecondsSinceEpoch ~/ 1000;
+        await NotificationService().scheduleNotification(
+          id: notificationId,
+          title: 'Recordatorio actualizado: $newTitle',
+          body: 'Es hora de: $newTitle',
+          scheduledDate: newDateTime,
+        );
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Recordatorio actualizado')),
@@ -174,9 +246,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
-  void _showAddReminderDialog() {
+  void _showAddReminderDialog() { 
     DateTime selectedDate = DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.now();
+
+    DateTime? _recurrenceEndDate;
+    _recurrenceEndDate = null;
+    String _recurrence = 'none';        // 'none', 'daily  o 'weekly'
+    int _customIntervalDays = 1;        // para 'custom'
 
     showDialog(
       context: context,
@@ -236,6 +313,68 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Selector de recurrencia
+                  DropdownButtonFormField<String>(
+                    value: _recurrence,
+                    decoration: const InputDecoration(labelText: 'Repetir'),
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('Sin repetición')),
+                      DropdownMenuItem(value: 'weekly', child: Text('Semanal')),
+                      DropdownMenuItem(value: 'daily', child: Text('Diaria')),
+                      DropdownMenuItem(value: 'custom', child: Text('Cada X días')),
+                    ],
+                    onChanged: (v) => setState(() => _recurrence = v!),
+                  ),
+
+                  // Si es custom, pedir intervalo
+                  if (_recurrence == 'custom') ...[
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      const Text('Intervalo (días):'),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 60,
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(isDense: true),
+                          onChanged: (txt) {
+                            final val = int.tryParse(txt);
+                            if (val != null && val > 0) setState(() => _customIntervalDays = val);
+                          },
+                          controller: TextEditingController(text: '$_customIntervalDays'),
+                        ),
+                      ),
+                    ]),
+                  ],
+
+                  // Si elige semanal, diaria o custom, pedimos fecha fin
+                  if (_recurrence != 'none') ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(_recurrenceEndDate == null
+                              ? 'Fecha de fin: --/--/----'
+                              : 'Fin: ${_recurrenceEndDate!.toLocal().toString().split(" ")[0]}'),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final end = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate,
+                              firstDate: selectedDate,
+                              lastDate: DateTime(2100),
+                            );
+                            if (end != null) setState(() => _recurrenceEndDate = end);
+                          },
+                          child: const Text('Seleccionar fin'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
               actions: [
@@ -252,7 +391,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       selectedTime.hour,
                       selectedTime.minute,
                     );
-                    await _addReminder(scheduledDateTime);
+                    await _addReminder(scheduledDateTime, _recurrence, _recurrenceEndDate, _customIntervalDays);
                     Navigator.pop(context);
                   },
                   child: const Text('Guardar'),
@@ -319,53 +458,100 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('reminders')
-            .where('userId', isEqualTo: user?.uid)
-            .orderBy('timestamp', descending: false)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No hay recordatorios aún'));
-          }
-          final reminders = snapshot.data!.docs;
-          return ListView.builder(
-            itemCount: reminders.length,
-            itemBuilder: (context, index) {
-              final reminder = reminders[index].data() as Map<String, dynamic>;
-              final title = reminder['title'] ?? '';
-              final Timestamp ts = reminder['timestamp'] as Timestamp? ?? Timestamp.now();
-              final DateTime dateTime = ts.toDate();
-              final reminderId = reminders[index].id; // ID del recordatorio
+      body: Column(
+      children: [
+        const SizedBox(height: 8),
+        // 1) ChoiceChips para alternar pendientes/completados
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ChoiceChip(
+              label: const Text('Pendientes'),
+              selected: !_showCompleted,
+              onSelected: (_) => setState(() => _showCompleted = false),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Completados'),
+              selected: _showCompleted,
+              onSelected: (_) => setState(() => _showCompleted = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // 2) Lista filtrada dentro de Expanded
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firestore
+              .collection('reminders')
+              .where('userId', isEqualTo: user?.uid)
+              .where('completed', isEqualTo: _showCompleted)             
+              .orderBy('timestamp', descending: false)
+              .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return Center(
+                  child: Text(_showCompleted
+                      ? 'No hay completados'
+                      : 'No hay pendientes'),
+                );
+              }
+              return ListView.builder(
+                itemCount: docs.length,
+                itemBuilder: (context, i) {
+                  final doc    = docs[i];
+                  final data   = doc.data()! as Map<String, dynamic>;
+                  final title  = data['title'] as String? ?? '';
+                  final ts     = data['timestamp'] as Timestamp;
+                  final date   = ts.toDate();
+                  final done   = data['completed']  as bool? ?? false;
+                  final id      = doc.id;
 
-              return ListTile(
-                title: Text(title),
-                subtitle: Text('Fecha: ${dateTime.toLocal()}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => _showEditReminderDialog(reminderId, title, dateTime),
+                  return ListTile(
+                    // 3) Checkbox para marcar completed
+                    leading: Checkbox(
+                      value: done,
+                      onChanged: (chk) {
+                        _updateReminder(id, date, title, completed: chk);
+                      },
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => _deleteReminder(reminderId),
+                    title: Text(
+                      title,
+                      style: TextStyle(
+                        decoration: done
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      ),
                     ),
-                  ],
-                ),
+                    subtitle: Text('Fecha: ${date.toLocal()}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _showEditReminderDialog(id, title, date),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteReminder(id),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        ),
+      ],
+    ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddReminderDialog,
         child: const Icon(Icons.add),
