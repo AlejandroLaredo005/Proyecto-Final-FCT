@@ -16,16 +16,19 @@ class RemindersScreen extends StatefulWidget {
 class _RemindersScreenState extends State<RemindersScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   bool _showCompleted = false;
 
   @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
   Future<void> _addReminder(DateTime firstDateTime, String recurrence, DateTime? endDate, int customIntervalDays) async {
     final String title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
     if (title.isEmpty) return;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -58,6 +61,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       // Añade el recordatorio y captura la referencia
       final docRef = await _firestore.collection('reminders').add({
         'title': title,
+        'description':  description.isEmpty ? null : description,
         'timestamp': dt,
         'userId': user?.uid,
         'completed': false,
@@ -107,13 +111,15 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
 
     _titleController.clear();
+    _descriptionController.clear();
   }
 
-  Future<void> _updateReminder(String reminderId, DateTime newDateTime, String newTitle, {bool? completed}) async {
+  Future<void> _updateReminder(String reminderId, DateTime newDateTime, String newTitle, String? newDescription, {bool? completed}) async {
     try {
       final data = {
         'title': newTitle,
         'timestamp': newDateTime,
+        'description': newDescription ?? '',
       };
       if (completed != null) {
         data['completed'] = completed;
@@ -121,7 +127,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       await _firestore.collection('reminders').doc(reminderId).update(data);
 
       // Actualizar notificación si es necesario (si cambian la fecha/hora)
-      if (completed == null){
+      if (completed == null || completed == false){
         final int notificationId = newDateTime.millisecondsSinceEpoch ~/ 1000;
         await NotificationService().scheduleNotification(
           id: notificationId,
@@ -154,10 +160,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
   }
 
-  void _showEditReminderDialog(String reminderId, String currentTitle, DateTime currentDateTime) {
+  void _showEditReminderDialog(String reminderId, String currentTitle, String? currentDescription, DateTime currentDateTime) {
     DateTime selectedDate = currentDateTime;
     TimeOfDay selectedTime = TimeOfDay(hour: selectedDate.hour, minute: selectedDate.minute);
     _titleController.text = currentTitle;
+    _descriptionController.text = currentDescription ?? '';
 
     showDialog(
       context: context,
@@ -173,6 +180,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     controller: _titleController,
                     decoration: const InputDecoration(
                       labelText: 'Título del recordatorio',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: _descriptionController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción (opcional)',
+                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -233,7 +250,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       selectedTime.hour,
                       selectedTime.minute,
                     );
-                    await _updateReminder(reminderId, updatedDateTime, _titleController.text);
+                    await _updateReminder(reminderId, updatedDateTime, _titleController.text, _descriptionController.text);
                     Navigator.pop(context);
                   },
                   child: const Text('Guardar cambios'),
@@ -272,6 +289,17 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  TextField(
+                    controller: _descriptionController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción (opcional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   Row(
                     children: [
                       Expanded(
@@ -404,6 +432,54 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  void _showViewReminderDialog(
+    String id,
+    String title,
+    DateTime dateTime,
+    String? description,
+    bool completed,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Fecha: ${dateTime.toLocal().toString().split('.')[0]}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (description != null && description.isNotEmpty) ...[
+                const Text(
+                  'Descripción:',
+                  style: TextStyle(decoration: TextDecoration.underline),
+                ),
+                const SizedBox(height: 4),
+                Text(description),
+                const SizedBox(height: 8),
+              ],
+              const Text(
+                'Estado:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(completed ? 'Completado' : 'Pendiente'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -513,13 +589,15 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   final date   = ts.toDate();
                   final done   = data['completed']  as bool? ?? false;
                   final id      = doc.id;
+                  final description = data['description'] as String?;
+                  final completed   = data['completed'] as bool? ?? false;
 
                   return ListTile(
                     // 3) Checkbox para marcar completed
                     leading: Checkbox(
                       value: done,
                       onChanged: (chk) {
-                        _updateReminder(id, date, title, completed: chk);
+                        _updateReminder(id, date, title, description, completed: chk);
                       },
                     ),
                     title: Text(
@@ -531,12 +609,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       ),
                     ),
                     subtitle: Text('Fecha: ${date.toLocal()}'),
+                    onTap: () => _showViewReminderDialog(
+                  id, title, date, description, completed),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit),
-                          onPressed: () => _showEditReminderDialog(id, title, date),
+                          onPressed: () => _showEditReminderDialog(id, title, description, date),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete),
