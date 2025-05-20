@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
+import 'package:proyecto_final_alejandro/screens/supervised_reminders_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,26 +21,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = false;
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-  final _picker = ImagePicker();
+  final _picker = ImagePicker();  
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
   }
 
-  Future<void> _loadUserProfile() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) {
-      final data = doc.data()!;
-      _nameController.text = data['name'] ?? '';
-      setState(() {
-        _photoUrl = data['photoUrl'];
-      });
+  String _generateCode() {
+    final rnd = Random();
+    String code = '';
+    for (int i = 0; i < 6; i++) {
+      code += rnd.nextInt(10).toString();
     }
+    return code;
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -147,68 +143,260 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mi Perfil')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (_loading) const LinearProgressIndicator(),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: _pickAndUploadImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-                child: _photoUrl == null
-                    ? const Icon(Icons.person, size: 50)
-                    : null,
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      // Si no hay usuario logueado, volvemos al login.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, AppRoutes.inicioSesion);
+      });
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Usamos un StreamBuilder para “escuchar” el documento de 'users/{uid}'
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestore.collection('users').doc(uid).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            body: Center(child: Text('Error al cargar perfil')),
+          );
+        }
+
+        // Aquí ya tenemos el documento “en vivo” de Firestore
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+
+        // Establecemos los campos visuales a partir de Firestore
+        _nameController.text = data['name'] as String? ?? '';
+        _photoUrl = data['photoUrl'] as String?;
+
+        // Código de supervisión (String) – si aún no existe, lo creamos
+        String supervisionCode = data['supervisionCode'] as String? ?? '';
+        if (supervisionCode.isEmpty) {
+          // Si no hay supervisionCode, lo generamos y escribimos de una vez.
+          supervisionCode = _generateCode();
+          _firestore.collection('users').doc(uid).set({
+            'supervisionCode': supervisionCode,
+            'supervisors': <String>[], // array vacío
+          }, SetOptions(merge: true));
+        }
+
+        // Leemos el array “supervisors” (UIDs de quienes supervisas tú):
+        final List<dynamic>? supList = data['supervisors'] as List<dynamic>?;
+        final mySupervisors = supList?.whereType<String>().toList() ?? <String>[];
+
+        return Scaffold(
+          appBar: AppBar(title: const Text('Mi Perfil')),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (_loading) const LinearProgressIndicator(),
+              const SizedBox(height: 16),
+
+              // Avatar y cambio de foto 
+              Center(
+                child: GestureDetector(
+                  onTap: _pickAndUploadImage,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage:
+                        _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+                    child: _photoUrl == null
+                        ? const Icon(Icons.person, size: 50)
+                        : null,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              icon: const Icon(Icons.photo_camera),
-              label: const Text('Cambiar foto'),
-              onPressed: _pickAndUploadImage,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre',
-                border: OutlineInputBorder(),
+              TextButton.icon(
+                icon: const Icon(Icons.photo_camera),
+                label: const Text('Cambiar foto'),
+                onPressed: _pickAndUploadImage,
               ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _saveProfile,
-                child: _loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Guardar perfil'),
+              const SizedBox(height: 24),
+
+              // Campo nombre 
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _signOut,
-                child: const Text('Cerrar sesión'),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _saveProfile,
+                  child: _loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Guardar perfil'),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                onPressed: _deleteAccount,
-                child: const Text('Eliminar cuenta'),
+              const SizedBox(height: 16),
+
+              // Cerrar sesión / Eliminar cuenta 
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _signOut,
+                  child: const Text('Cerrar sesión'),
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: _deleteAccount,
+                  child: const Text('Eliminar cuenta'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              // Código de supervisión 
+              const Text(
+                'Tu código de supervisión:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                supervisionCode,
+                style: const TextStyle(fontSize: 20, letterSpacing: 2),
+              ),
+              const SizedBox(height: 16),
+
+              // Botón para agregar supervisado 
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.group_add),
+                  label: const Text('Agregar supervisado'),
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRoutes.agregarSupervisado)
+                        .then((_) {
+                      // Al volver, el StreamBuilder ya se actualizará automáticamente
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Lista de personas que supervisas, o mensaje si está vacía 
+              if (mySupervisors.isNotEmpty) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                const Text(
+                  'Personas que supervisas:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                // Un ListView.builder “anidado” dentro del ListView principal
+                ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: mySupervisors.length,
+                  itemBuilder: (context, idx) {
+                    final supUid = mySupervisors[idx];
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: _firestore.collection('users').doc(supUid).get(),
+                      builder: (context, snap) {
+                        if (!snap.hasData || !snap.data!.exists) {
+                          return const ListTile(
+                            leading: Icon(Icons.person),
+                            title: Text('Cargando...'),
+                          );
+                        }
+                        final userData =
+                            snap.data!.data() as Map<String, dynamic>;
+                        final name =
+                            userData['name'] as String? ?? '(Sin nombre)';
+
+                        return ListTile(
+                          leading: const Icon(Icons.person),
+                          title: Text(name),
+                          subtitle: Text('UID: $supUid'),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SupervisedRemindersScreen(
+                                  superviseeUid: supUid,
+                                  superviseeName: name,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
+                const Text('Aún no supervisas a nadie'),
+              ],
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              // Sección: Personas que me supervisan 
+              const Text(
+                'Personas que me supervisan:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+
+              // Usamos otro StreamBuilder que consulta “where supervisors array-contains miUid”
+              StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('users')
+                    .where('supervisors', arrayContains: uid)
+                    .snapshots(),
+                builder: (context, snap2) {
+                  if (snap2.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snap2.hasError) {
+                    return Center(
+                        child: Text('Error: ${snap2.error}'));
+                  }
+                  final docs = snap2.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return const Text('Nadie te está supervisando aún.');
+                  }
+
+                  return ListView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: docs.length,
+                    itemBuilder: (context, i) {
+                      final docData = docs[i].data() as Map<String, dynamic>;
+                      final otherUid = docs[i].id;
+                      final otherName =
+                          docData['name'] as String? ?? '(Sin nombre)';
+                      return ListTile(
+                        leading: const Icon(Icons.person_outline),
+                        title: Text(otherName),
+                        subtitle: Text('UID: $otherUid'),
+                      );
+                    },
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
   }
 }
