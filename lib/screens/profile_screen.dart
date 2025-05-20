@@ -135,6 +135,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Elimina a `supUid` del array “supervisors” de **mi** documento.
+  Future<void> _removeSupervised(String supUid) async {
+    final myUid = _auth.currentUser?.uid;
+    if (myUid == null) return;
+
+    try {
+      await _firestore.collection('users').doc(myUid).update({
+        'supervisors': FieldValue.arrayRemove([supUid]),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Se eliminó de personas que supervisas')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar supervisado: $e')),
+      );
+    }
+  }
+
+  /// Elimina a **mí** (mi UID) del array “supervisors” de `otherUid`.
+  Future<void> _removeSupervisor(String otherUid) async {
+    final myUid = _auth.currentUser?.uid;
+    if (myUid == null) return;
+
+    try {
+      await _firestore.collection('users').doc(otherUid).update({
+        'supervisors': FieldValue.arrayRemove([myUid]),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Se eliminó de personas que me supervisan')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar supervisor: $e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -323,6 +361,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           leading: const Icon(Icons.person),
                           title: Text(name),
                           subtitle: Text('UID: $supUid'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            tooltip: 'Dejar de supervisar',
+                            onPressed: () {
+                              _removeSupervised(supUid);
+                            },
+                          ),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -386,6 +431,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const Icon(Icons.person_outline),
                         title: Text(otherName),
                         subtitle: Text('UID: $otherUid'),
+                         trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          tooltip: 'Eliminar supervisor',
+                          onPressed: () {
+                            _removeSupervisor(otherUid);
+                          },
+                        ),
                       );
                     },
                   );
