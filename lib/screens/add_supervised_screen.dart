@@ -14,9 +14,15 @@ class _AddSupervisedScreenState extends State<AddSupervisedScreen> {
   bool _loading = false;
   String? _error;
 
-  Future<void> _addByCode() async {
+  Future<void> _sendRequest() async {
     final code = _codeController.text.trim();
-    if (code.isEmpty) return;
+    if (code.isEmpty) {
+      setState(() => _error = 'Introduce un código válido');
+      return;
+    }
+
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
 
     setState(() {
       _loading = true;
@@ -24,43 +30,47 @@ class _AddSupervisedScreenState extends State<AddSupervisedScreen> {
     });
 
     try {
-      // Busca usuario cuyo supervisionCode == code
-      final querySnap = await FirebaseFirestore.instance
+      // Buscamos el usuario con ese supervisionCode:
+      final query = await FirebaseFirestore.instance
           .collection('users')
           .where('supervisionCode', isEqualTo: code)
           .limit(1)
           .get();
 
-      if (querySnap.docs.isEmpty) {
+      if (query.docs.isEmpty) {
         setState(() => _error = 'Código no válido');
-        return;
+      } else {
+        final targetDoc = query.docs.first;
+        final targetUid = targetDoc.id;
+
+        // Evitar auto-solicitud:
+        if (targetUid == myUid) {
+          setState(() => _error = 'No puedes solicitar supervisión a ti mismo.');
+        } else {
+          // 1) Revisar si ya existe petición pendiente:
+          final List<dynamic>? pendientes =
+              targetDoc.data()['pendingSupervisionRequests'] as List<dynamic>?;
+
+          if (pendientes != null && pendientes.contains(myUid)) {
+            setState(() => _error = 'Ya has enviado una solicitud pendiente.');
+          } else {
+            // 2) Añadimos a array “pendingSupervisionRequests” de target:
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(targetUid)
+                .update({
+              'pendingSupervisionRequests': FieldValue.arrayUnion([myUid]),
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Solicitud enviada')),
+            );
+            Navigator.pop(context);
+          }
+        }
       }
-
-      final targetDoc = querySnap.docs.first;
-      final targetUid = targetDoc.id;
-
-      final myUid = FirebaseAuth.instance.currentUser?.uid;
-      if (myUid == null) {
-        setState(() => _error = 'Debes iniciar sesión');
-        return;
-      }
-      if (targetUid == myUid) {
-        setState(() => _error = 'No puedes supervisarte a ti mismo');
-        return;
-      }
-
-      // Guardo en mi array “supervisors” el UID de quien voy a supervisar.
-      final myRef = FirebaseFirestore.instance.collection('users').doc(myUid);
-      await myRef.update({
-        'supervisors': FieldValue.arrayUnion([targetUid]),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Ahora supervisas a esta persona')),
-      );
-      Navigator.pop(context);
     } catch (e) {
-      setState(() => _error = 'Error: $e');
+      setState(() => _error = 'Error al enviar solicitud: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -100,7 +110,7 @@ class _AddSupervisedScreenState extends State<AddSupervisedScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _loading ? null : _addByCode,
+                onPressed: _loading ? null : _sendRequest,
                 child: _loading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Agregar'),

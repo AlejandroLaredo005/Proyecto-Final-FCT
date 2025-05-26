@@ -4,6 +4,7 @@ import 'package:proyecto_final_alejandro/screens/login_screen.dart';
 import 'package:proyecto_final_alejandro/screens/profile_screen.dart';
 import 'package:proyecto_final_alejandro/screens/register_screen.dart';
 import 'package:proyecto_final_alejandro/screens/reminders_screen.dart';
+import 'package:proyecto_final_alejandro/screens/supervision_request_screen.dart';
 
 import 'imports.dart';
 
@@ -15,6 +16,7 @@ class AppRoutes {
   static const String recordatorios = '/recordatorios';
   static const String perfil = '/perfil';
   static const String agregarSupervisado = '/agregar_supervisado';
+  static const String solicitudesSupervision = '/solicitudes_supervision';
 
   // Mapa de rutas
   static final Map<String, WidgetBuilder> routes = {
@@ -24,5 +26,6 @@ class AppRoutes {
     recordatorios: (context) => const RemindersScreen(),
     perfil: (context) => const ProfileScreen(),
     agregarSupervisado: (context) => const AddSupervisedScreen(),
+    solicitudesSupervision: (_) => const SupervisionRequestsScreen(),
   };
 }

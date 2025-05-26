@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/screens/supervised_reminders_screen.dart';
+import 'package:proyecto_final_alejandro/screens/supervision_request_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -229,8 +230,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final List<dynamic>? supList = data['supervisors'] as List<dynamic>?;
         final mySupervisors = supList?.whereType<String>().toList() ?? <String>[];
 
+        // Lista de solicitudes pendientes
+        final List<dynamic>? pendList =
+            data['pendingSupervisionRequests'] as List<dynamic>?;
+        final myPending = pendList?.whereType<String>().toList() ?? <String>[];
+
         return Scaffold(
-          appBar: AppBar(title: const Text('Mi Perfil')),
+          appBar: AppBar(
+            title: const Text('Mi Perfil'),
+            actions: [
+              // Icono que abre “Solicitudes de supervisión entrantes”
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.how_to_reg),
+                    tooltip: 'Solicitudes entrantes',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SupervisionRequestsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (myPending.isNotEmpty)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        constraints:
+                            const BoxConstraints(minWidth: 20, minHeight: 20),
+                        child: Text(
+                          '${myPending.length}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
