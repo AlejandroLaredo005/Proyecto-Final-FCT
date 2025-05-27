@@ -100,6 +100,16 @@ class _RemindersList extends StatelessWidget {
             final dateTime = ts.toDate();
             final reminderId = doc.id;
 
+            // Leemos el mapa notificationSettings (si existe)
+            final Map<String, dynamic> notificationSettings =
+                (data['notificationSettings'] as Map<String, dynamic>?) ?? {};
+
+            // ¿Existe una entrada para este supervisor en notificationSettings?
+            final String? modoElegido = notificationSettings[currentUserUid] as String?;
+
+            // Si modoElegido != null, marcamos el icono en verde
+            final iconColor = modoElegido != null ? Colors.green : Colors.blue;
+
             return Card(
               margin:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -108,15 +118,17 @@ class _RemindersList extends StatelessWidget {
                 subtitle: Text(
                   'Fecha: ${dateTime.toLocal().toString().split('.').first}',
                 ),
-                // Solo si es pendiente, mostramos icono de campana
+                // Solo si es pendiente, mostramos icono de campana con su color correspondiente
                 trailing: showCompleted
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.notifications, color: Colors.blue),
-                        tooltip: 'Opciones de notificación',
+                        icon: Icon(Icons.notifications, color: iconColor),
+                        tooltip: modoElegido == null
+                            ? 'Sin notificación'
+                            : 'Modo: $modoElegido',
                         onPressed: () {
                           _showNotificationOptionsDialog(
-                              context, reminderId, title, currentUserUid, dateTime,);
+                              context, reminderId, title, currentUserUid, dateTime, modoElegido,);
                         },
                       ),
                 onTap: () {
@@ -147,17 +159,45 @@ class _RemindersList extends StatelessWidget {
     );
   }
 
-  /// Diálogo que ofrece dos opciones (por ahora implemento solo “30 min después”).
+  // Diálogo que ofrece 3 opciones las cuales permite personalizar la notificacion que queremos.
   void _showNotificationOptionsDialog(
     BuildContext context,
     String reminderId,
     String reminderTitle,
     String supervisorUid,
     DateTime originalDateTime,
+    [String? modoActual]
   ) {
+    // Si ya existe un modo guardado para este supervisor, mostramos un diálogo informativo:
+    if (modoActual != null) {
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: const Text('Notificación ya programada'),
+            content: Text(
+              'Ya tienes una notificación programada con modo:\n\n'
+              '“$modoActual”\n\n'
+              'Si lo deseas, para cambiarlo primero debes eliminar o cancelar la notificación anterior.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          );
+        },
+      );
+      return; // Salimos, no abrimos el diálogo de opciones.
+    }
+     // Si no había modo guardado (modoActual == null), mostramos el diálogo con las 3 opciones:
     showDialog(
       context: context,
       builder: (ctx) {
+        // variable local para saber qué opción está marcada (inicialmente “none”)
+        String selectedMode = 'none';
+
         return AlertDialog(
           title: const Text('Programar notificación'),
           content: const Text('¿Cuándo quieres que te avise?'),
@@ -199,6 +239,17 @@ class _RemindersList extends StatelessWidget {
                     existingWorkPolicy: ExistingWorkPolicy.replace,
                   );
                 }
+
+                selectedMode = 'notifyIfCompleted';
+
+                await FirebaseFirestore.instance
+                        .collection('reminders')
+                        .doc(reminderId)
+                        .set({
+                      'notificationSettings': {
+                        supervisorUid: selectedMode,
+                      }
+                    }, SetOptions(merge: true));
 
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -254,6 +305,17 @@ class _RemindersList extends StatelessWidget {
                     existingWorkPolicy: ExistingWorkPolicy.replace,
                   );
                 }
+
+                selectedMode = 'notifyIfPending';
+
+                await FirebaseFirestore.instance
+                        .collection('reminders')
+                        .doc(reminderId)
+                        .set({
+                      'notificationSettings': {
+                        supervisorUid: selectedMode,
+                      }
+                    }, SetOptions(merge: true));
 
                 Navigator.pop(ctx);
 
@@ -321,6 +383,17 @@ class _RemindersList extends StatelessWidget {
                   },
                   existingWorkPolicy: ExistingWorkPolicy.replace,
                 );
+
+                selectedMode = 'sameNotificationsAsSupervised';
+
+                await FirebaseFirestore.instance
+                        .collection('reminders')
+                        .doc(reminderId)
+                        .set({
+                      'notificationSettings': {
+                        supervisorUid: selectedMode,
+                      }
+                    }, SetOptions(merge: true));
 
                 Navigator.pop(ctx);
 
