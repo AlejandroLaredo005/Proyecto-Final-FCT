@@ -28,6 +28,7 @@ void callbackDispatcher() {
       final id    = inputData['id']   as int;
       final title = inputData['title'] as String;
       final body  = inputData['body']  as String;
+      final mode  = inputData['mode']  as String?; 
 
       if (docId != null) {
         // Leer documento en Firestore
@@ -36,10 +37,24 @@ void callbackDispatcher() {
             .doc(docId)
             .get();
 
+        if (!doc.exists) {
+          // Si el recordatorio ya no existe, no hacemos nada
+          return Future.value(true);
+        }
+
         final completed = doc.data()?['completed'] as bool? ?? false;
 
+        //   - Si mode == "notifyIfPending", notificamos solo si completed == false
+        //   - Si mode == "notifyIfCompleted", notificamos solo si completed == true
+        bool shouldShow = false;
+        if (mode == "notifyIfPending" && completed == false) {
+          shouldShow = true;
+        } else if (mode == "notifyIfCompleted" && completed == true) {
+          shouldShow = true;
+        }
+
         // Mostrar solo si no está completado
-        if (!completed) {
+        if (shouldShow) {
           await flutterLocalNotificationsPlugin.show(
             id,
             title,

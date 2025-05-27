@@ -164,11 +164,50 @@ class _RemindersList extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () async {
-                // “Cuando se complete” → implementarlo en el futuro
+                // “Cuando se complete” 
+                // Programamos un Workmanager que, 30 minutos despues de la hora original,
+                // verifique si completed == TRUE y, en tal caso, notifique.
+                final scheduledTime     = originalDateTime.add(const Duration(minutes: 30));
+                final now               = DateTime.now();
+                final delayDuration     = scheduledTime.difference(now);
+                final followUpId        = scheduledTime.millisecondsSinceEpoch ~/ 1000;
+
+                final inputData = {
+                  'docId': reminderId,
+                  'title': reminderTitle,
+                  'body': 'El recordatorio "$reminderTitle" fue completado.',
+                  'id': followUpId,
+                  'mode': 'notifyIfCompleted',
+                };
+
+                if (delayDuration.isNegative) {
+                  // Si la hora ya pasó, programamos “inmediato”
+                  await Workmanager().registerOneOffTask(
+                    followUpId.toString(),
+                    notificationTask,
+                    initialDelay: Duration.zero,
+                    inputData: inputData,
+                    existingWorkPolicy: ExistingWorkPolicy.replace,
+                  );
+                } else {
+                  // Programamos para que espere delayDuration
+                  await Workmanager().registerOneOffTask(
+                    followUpId.toString(),
+                    notificationTask,
+                    initialDelay: delayDuration,
+                    inputData: inputData,
+                    existingWorkPolicy: ExistingWorkPolicy.replace,
+                  );
+                }
+
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Esta opción se habilitará más adelante.'),
+                  SnackBar(
+                    content: Text(
+                      delayDuration.isNegative
+                        ? 'Notificación programada inmediatamente (ya venció).'
+                        : 'Notificación programada a las ${scheduledTime.toLocal().toString().substring(0, 16)}.',
+                    ),
                   ),
                 );
               },
@@ -193,6 +232,7 @@ class _RemindersList extends StatelessWidget {
                   'body':
                       'El recordatorio "$reminderTitle" sigue pendiente después de 30 min.',
                   'id': followUpId,
+                  'mode': 'notifyIfPending',
                 };
 
                 if (delay.isNegative) {

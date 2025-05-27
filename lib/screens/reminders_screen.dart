@@ -88,6 +88,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           'id':   baseId,
           'title': 'Recordatorio: $title',
           'body':  'Es hora de: $title',
+          'mode':   'notifyIfPending',
         },
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
@@ -105,6 +106,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           'id':    followUpId,
           'title': '🔔 Recordatorio pendiente: $title',
           'body':  'Si no has completado "$title", aún estás a tiempo',
+          'mode':   'notifyIfPending',
         },
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
