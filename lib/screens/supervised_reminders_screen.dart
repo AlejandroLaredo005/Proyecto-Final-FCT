@@ -159,7 +159,7 @@ class _RemindersList extends StatelessWidget {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Notificar a supervisor'),
+          title: const Text('Programar notificación'),
           content: const Text('¿Cuándo quieres que te avise?'),
           actions: [
             TextButton(
@@ -211,7 +211,7 @@ class _RemindersList extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('Cuando se complete'),
+              child: const Text('30 min despues si es completado'),
             ),
             TextButton(
               onPressed: () async {
@@ -267,7 +267,76 @@ class _RemindersList extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('30 min después'),
+              child: const Text('30 min después si no es completado'),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Calculamos las dos fechas/hora: la original y 10 minutos después
+                final now = DateTime.now();
+                final firstTime = originalDateTime;
+                final secondTime = originalDateTime.add(const Duration(minutes: 10));
+
+                // Calculamos los delays para Workmanager
+                final firstDelay = firstTime.difference(now);
+                final secondDelay = secondTime.difference(now);
+
+                // Generamos dos IDs únicos (por ejemplo, a partir del timestamp)
+                final firstId  = firstTime.millisecondsSinceEpoch ~/ 1000;
+                final secondId = secondTime.millisecondsSinceEpoch ~/ 1000;
+
+                // Datos que pasaremos al callback para la notificación
+                final commonData = {
+                  'docId': reminderId,
+                  'title': reminderTitle,
+                };
+
+                // Tarea A: notificación justo a la hora original
+                await Workmanager().registerOneOffTask(
+                  firstId.toString(),            // nombre único de esta tarea
+                  notificationTask,              // callbackDispatcher identifica esta constante
+                  initialDelay: firstDelay.isNegative
+                      ? Duration.zero
+                      : firstDelay,
+                  inputData: {
+                    ...commonData,
+                    'id':   firstId,
+                    'body': 'Es hora de: $reminderTitle',
+                    'mode': 'notifyIfPending',
+                  },
+                  existingWorkPolicy: ExistingWorkPolicy.replace,
+                );
+
+                // Tarea B: notificación 10 minutos después
+                await Workmanager().registerOneOffTask(
+                  secondId.toString(),
+                  notificationTask,
+                  initialDelay: secondDelay.isNegative
+                      ? Duration.zero
+                      : secondDelay,
+                  inputData: {
+                    ...commonData,
+                    'id':   secondId,
+                    'body': 'Han pasado 10 min y aún no se completó: $reminderTitle',
+                    'mode': 'notifyIfPending',
+                  },
+                  existingWorkPolicy: ExistingWorkPolicy.replace,
+                );
+
+                Navigator.pop(ctx);
+
+                // Mensaje informativo
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      firstDelay.isNegative
+                          ? 'Notificación “hora exacta” programada inmediatamente (ya venció).'
+                          : 'Notificación “hora exacta” programada a las '
+                            '${firstTime.toLocal().toString().split('.').first}.',
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Cuando cumpla y 10 min después'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
