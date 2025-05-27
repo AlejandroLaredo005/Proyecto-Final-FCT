@@ -178,9 +178,70 @@ class _RemindersList extends StatelessWidget {
             content: Text(
               'Ya tienes una notificación programada con modo:\n\n'
               '“$modoActual”\n\n'
-              'Si lo deseas, para cambiarlo primero debes eliminar o cancelar la notificación anterior.',
+              'Si lo deseas, para cambiarlo primero debes eliminar la notificación anterior.',
             ),
             actions: [
+              TextButton(
+                onPressed: () async {
+                  // Solo gestionamos aquí la eliminación del modo “notifyIfCompleted” y "notifyIfPending", pues su logica es la misma
+                  if (modoActual == 'notifyIfCompleted' || modoActual == 'notifyIfPending') {
+                    // Calculamos la hora en que se programó originalmente la tarea:
+                    final scheduledTime = originalDateTime.add(const Duration(minutes: 30));
+                    // Volvemos a calcular el mismo ID que usamos en Workmanager:
+                    final followUpId = scheduledTime.millisecondsSinceEpoch ~/ 1000;
+                    // Cancelamos la tarea pendiente en Workmanager:
+                    await Workmanager().cancelByUniqueName(followUpId.toString());
+
+                    // Eliminamos ese modo del documento en Firestore:
+                    await FirebaseFirestore.instance
+                      .collection('reminders')
+                      .doc(reminderId)
+                      .set({
+                        'notificationSettings': {
+                          supervisorUid: FieldValue.delete(),
+                        }
+                      },
+                      SetOptions(merge: true),
+                    );
+
+                  } else if (modoActual == 'sameNotificationsAsSupervised'){
+                    // Calculamos la hora a la que estan las notificaciones
+                    final firstTime = originalDateTime;
+                    final secondTime = originalDateTime.add(const Duration(minutes: 10));
+
+                    // Calculamos las ids de las tareas
+                    final firstId  = firstTime.millisecondsSinceEpoch ~/ 1000;
+                    final secondId = secondTime.millisecondsSinceEpoch ~/ 1000;
+
+                    // Cancelamos las tareas pendientes en Workmanager:
+                    await Workmanager().cancelByUniqueName(firstId.toString());
+                    await Workmanager().cancelByUniqueName(secondId.toString());
+
+                    // Eliminamos ese modo del documento en Firestore:
+                    await FirebaseFirestore.instance
+                      .collection('reminders')
+                      .doc(reminderId)
+                      .set({
+                        'notificationSettings': {
+                          supervisorUid: FieldValue.delete(),
+                        }
+                      },
+                      SetOptions(merge: true),
+                    );
+                  }
+                  // Cerrar el diálogo
+                  Navigator.pop(ctx);
+
+                  // Muestra un SnackBar de confirmación
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notificación eliminada correctamente.')),
+                  );
+                },
+                child: const Text(
+                  'Eliminar notificación',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Cerrar'),
