@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:proyecto_final_alejandro/background_task.dart';
+import 'package:workmanager/workmanager.dart';
 
 class SupervisedRemindersScreen extends StatelessWidget {
   final String superviseeUid;
@@ -114,7 +116,7 @@ class _RemindersList extends StatelessWidget {
                         tooltip: 'Opciones de notificación',
                         onPressed: () {
                           _showNotificationOptionsDialog(
-                              context, reminderId, title, currentUserUid);
+                              context, reminderId, title, currentUserUid, dateTime,);
                         },
                       ),
                 onTap: () {
@@ -145,9 +147,14 @@ class _RemindersList extends StatelessWidget {
     );
   }
 
-  /// Abre un diálogo con las dos opciones: 'onComplete' o 'after30min'
-  void _showNotificationOptionsDialog(BuildContext context, String reminderId,
-      String reminderTitle, String supervisorUid) {
+  /// Diálogo que ofrece dos opciones (por ahora implemento solo “30 min después”).
+  void _showNotificationOptionsDialog(
+    BuildContext context,
+    String reminderId,
+    String reminderTitle,
+    String supervisorUid,
+    DateTime originalDateTime,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -157,22 +164,11 @@ class _RemindersList extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () async {
-                // Opción 1: Notificar cuando se complete
-                await FirebaseFirestore.instance
-                    .collection('reminders')
-                    .doc(reminderId)
-                    .set(
-                  {
-                    'notificationSettings': {
-                      supervisorUid: 'onComplete',
-                    }
-                  },
-                  SetOptions(merge: true),
-                );
+                // “Cuando se complete” → implementarlo en el futuro
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Pedido: te avisaré cuando se complete.'),
+                    content: Text('Esta opción se habilitará más adelante.'),
                   ),
                 );
               },
@@ -180,22 +176,54 @@ class _RemindersList extends StatelessWidget {
             ),
             TextButton(
               onPressed: () async {
-                // Opción 2: Notificar 30 min después
-                await FirebaseFirestore.instance
-                    .collection('reminders')
-                    .doc(reminderId)
-                    .set(
-                  {
-                    'notificationSettings': {
-                      supervisorUid: 'after30min',
-                    }
-                  },
-                  SetOptions(merge: true),
-                );
+                // 30 min después de la hora original
+                final scheduledTime =
+                    originalDateTime.add(const Duration(minutes: 30));
+                final now = DateTime.now();
+                final delay = scheduledTime.difference(now);
+
+                // ID de la tarea y de la notificación 
+                final followUpId =
+                    scheduledTime.millisecondsSinceEpoch ~/ 1000;
+
+                // Campos que queremos pasar al callback
+                final inputData = {
+                  'docId': reminderId,
+                  'title': reminderTitle,
+                  'body':
+                      'El recordatorio "$reminderTitle" sigue pendiente después de 30 min.',
+                  'id': followUpId,
+                };
+
+                if (delay.isNegative) {
+                  // Si la hora ya pasó, programamos Workmanager “inmediato”
+                  await Workmanager().registerOneOffTask(
+                    followUpId.toString(),
+                    notificationTask,
+                    initialDelay: Duration.zero,
+                    inputData: inputData,
+                    existingWorkPolicy: ExistingWorkPolicy.replace,
+                  );
+                } else {
+                  // Programamos para retrasar 'delay'
+                  await Workmanager().registerOneOffTask(
+                    followUpId.toString(),
+                    notificationTask,
+                    initialDelay: delay,
+                    inputData: inputData,
+                    existingWorkPolicy: ExistingWorkPolicy.replace,
+                  );
+                }
+
                 Navigator.pop(ctx);
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Pedido: te avisaré 30 min después si sigue pendiente.'),
+                  SnackBar(
+                    content: Text(
+                      delay.isNegative
+                          ? 'Notificación programada inmediatamente (ya venció).'
+                          : 'Notificación programada a las ${scheduledTime.toLocal().toString().split('.').first}.',
+                    ),
                   ),
                 );
               },
