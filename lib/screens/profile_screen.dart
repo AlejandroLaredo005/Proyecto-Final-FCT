@@ -407,9 +407,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             snap.data!.data() as Map<String, dynamic>;
                         final name =
                             userData['name'] as String? ?? '(Sin nombre)';
+                        final photo = 
+                            userData['photoUrl'] as String?;
 
                         return ListTile(
-                          leading: const Icon(Icons.person),
+                          leading: photo != null
+                              ? CircleAvatar(backgroundImage: NetworkImage(photo))
+                              : const CircleAvatar(child: Icon(Icons.person)),
                           title: Text(name),
                           subtitle: Text('UID: $supUid'),
                           trailing: IconButton(
@@ -478,8 +482,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       final otherUid = docs[i].id;
                       final otherName =
                           docData['name'] as String? ?? '(Sin nombre)';
+                      final otherPhoto = 
+                          docData['photoUrl'] as String?;
                       return ListTile(
-                        leading: const Icon(Icons.person_outline),
+                        leading: otherPhoto != null
+                            ? CircleAvatar(backgroundImage: NetworkImage(otherPhoto))
+                            : const CircleAvatar(child: Icon(Icons.person_outline)),
                         title: Text(otherName),
                         subtitle: Text('UID: $otherUid'),
                          trailing: IconButton(
