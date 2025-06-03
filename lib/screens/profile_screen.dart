@@ -39,35 +39,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAndUploadImage() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+  final uid = _auth.currentUser?.uid;
+  if (uid == null) return;
 
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
+  final picked = await _picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 80,
+  );
+  if (picked == null) return;
+
+  setState(() => _loading = true);
+  try {
+    final file = File(picked.path);
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    final task = await ref.putFile(file);
+    final url = await task.ref.getDownloadURL();
+
+    // 1) Actualizo _photoUrl en memoria
+    setState(() {
+      _photoUrl = url;
+    });
+
+    // 2) Escribo inmediatamente en Firestore para que el perfil se actualice
+    await _firestore.collection('users').doc(uid).set({
+      'photoUrl': url,
+    }, SetOptions(merge: true));
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error al subir imagen: $e')),
     );
-    if (picked == null) return;
-
-    setState(() => _loading = true);
-    try {
-      final file = File(picked.path);
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      final task = await ref.putFile(file);
-      final url = await task.ref.getDownloadURL();
-
-      setState(() {
-        _photoUrl = url;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al subir imagen: $e')),
-      );
-    } finally {
-      setState(() => _loading = false);
-    }
+  } finally {
+    setState(() => _loading = false);
   }
+}
 
   Future<void> _saveProfile() async {
     final uid = _auth.currentUser?.uid;
