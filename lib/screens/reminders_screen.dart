@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:proyecto_final_alejandro/background_task.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/notification_service.dart';
@@ -434,6 +435,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  // Lógica para usar un DateFormat
+  String _formatDateTime(DateTime dt) {
+    final df = DateFormat('MMM dd, yyyy  •  HH:mm');
+    return df.format(dt);
+  }
+
   void _showViewReminderDialog(
     String id,
     String title,
@@ -451,7 +458,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Fecha: ${dateTime.toLocal().toString().split('.')[0]}',
+                _formatDateTime(dateTime),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -497,49 +504,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.flash_on),
-            tooltip: 'Test Noti',
-            onPressed: () async {
-              debugPrint('▶️ [Reminders] Test inmediato pulsado');
-              try {
-                await NotificationService().showNotification(
-                  id: 999,
-                  title: '🚀 Test Ahora',
-                  body: 'Comprueba si se dispara esta notif.',
-                );
-                debugPrint('   — showNotification completado');
-              } catch (e, s) {
-                debugPrint('❌ Error en showNotification: $e\n$s');
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Disparando test inmediato...')),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.schedule_send),
-            tooltip: 'Test programado 5s',
-            onPressed: () async {
-              final inFive = DateTime.now().add(const Duration(seconds: 5));
-              debugPrint('▶️ [Reminders] Test programado pulsado');
-              await NotificationService().scheduleNotification(
-                id: 888,
-                title: '⏰ Test programado',
-                body: 'Esta notificación debe saltar en 5 s',
-                scheduledDate: inFive,
-              );
-              debugPrint('   — Test programado finished call');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notificación programada en 5 s')),
-              );
-            },
-          ),
+          icon: const Icon(Icons.add),
+          tooltip: 'Agregar recordatorio',
+          onPressed: _showAddReminderDialog,
+        ),
         ],
       ),
       body: Column(
       children: [
         const SizedBox(height: 8),
-        // 1) ChoiceChips para alternar pendientes/completados
+        // ChoiceChips para alternar pendientes/completados
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -557,7 +531,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        // 2) Lista filtrada dentro de Expanded
+        // Lista filtrada dentro de Expanded
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: _firestore
@@ -594,49 +568,180 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   final description = data['description'] as String?;
                   final completed   = data['completed'] as bool? ?? false;
 
-                  return ListTile(
-                    // 3) Checkbox para marcar completed
-                    leading: Checkbox(
-                      value: done,
-                      onChanged: (chk) {
-                        _updateReminder(id, date, title, description, completed: chk);
-                      },
-                    ),
-                    title: Text(
+                  return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: _ReminderCard(
+                        id: id,
+                        title: title,
+                        description: description,
+                        date: date,
+                        done: done,
+                        formatDate: _formatDateTime,
+                        onToggleCompleted: (value) {
+                          _updateReminder(id, date, title, description, completed: value);
+                        },
+                        onEdit: () {
+                          _showEditReminderDialog(id, title, description, date);
+                        },
+                        onDelete: () {
+                          _deleteReminder(id);
+                        },
+                        onTap: () {
+                          _showViewReminderDialog(id, title, date, description, completed);
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Widget que aplica estilos a cada recordatorio y asigna el fondo según:
+//  - si ya pasó: rojo suave
+//  - si falta ≤ 24 h: amarillo suave
+//  - si falta > 24 h: verde suave
+//  - si está completado: gris suave
+class _ReminderCard extends StatelessWidget {
+  final String id;
+  final String title;
+  final String? description;
+  final DateTime date;
+  final bool done;
+  final String Function(DateTime) formatDate;
+  final ValueChanged<bool?> onToggleCompleted;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onTap;
+
+  const _ReminderCard({
+    required this.id,
+    required this.title,
+    required this.date,
+    required this.done,
+    required this.formatDate,
+    required this.onToggleCompleted,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onTap,
+    this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Determinar el color de fondo según la fecha y si está completado:
+    final now = DateTime.now();
+    Color bgColor;
+
+    if (done) {
+      bgColor = Colors.grey.shade100;
+    } else {
+      final diff = date.difference(now);
+
+      if (diff.isNegative) {
+        // Fecha ya pasada
+        bgColor = Colors.red.shade100;
+      } else if (diff.inHours <= 24) {
+        // Fecha dentro de las próximas 24 horas
+        bgColor = Colors.yellow.shade100;
+      } else {
+        // Fecha a más de 24 horas
+        bgColor = Colors.green.shade100;
+      }
+    }
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      color: bgColor,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Checkbox circular para marcar pendiente/completado
+              Checkbox(
+                value: done,
+                onChanged: onToggleCompleted,
+                shape: const CircleBorder(),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Columna con título, descripción breve y fecha
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Título (tachado si está completado)
+                    Text(
                       title,
                       style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         decoration: done
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
                       ),
                     ),
-                    subtitle: Text('Fecha: ${date.toLocal()}'),
-                    onTap: () => _showViewReminderDialog(
-                  id, title, date, description, completed),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _showEditReminderDialog(id, title, description, date),
+
+                    const SizedBox(height: 4),
+
+                    // Si hay descripción, la mostramos hasta 2 líneas
+                    if (description != null && description!.isNotEmpty) ...[
+                      Text(
+                        description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteReminder(id),
-                        ),
-                      ],
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+
+                    // Fecha formateada
+                    Text(
+                      formatDate(date),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
-                  );
-                },
-              );
-            },
+                  ],
+                ),
+              ),
+
+              // Botones de editar y eliminar
+              Column(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    color: Colors.blueAccent,
+                    tooltip: 'Editar',
+                    onPressed: onEdit,
+                  ),
+                  const SizedBox(height: 4),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20),
+                    color: Colors.redAccent,
+                    tooltip: 'Eliminar',
+                    onPressed: onDelete,
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-      ],
-    ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddReminderDialog,
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:proyecto_final_alejandro/background_task.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -100,63 +101,95 @@ class _RemindersList extends StatelessWidget {
             final dateTime = ts.toDate();
             final reminderId = doc.id;
 
-            // Leemos el mapa notificationSettings (si existe)
+            // Leemos el mapa notificationSettings (si existe):
             final Map<String, dynamic> notificationSettings =
                 (data['notificationSettings'] as Map<String, dynamic>?) ?? {};
 
             // ¿Existe una entrada para este supervisor en notificationSettings?
-            final String? modoElegido = notificationSettings[currentUserUid] as String?;
+            final String? modoElegido =
+                notificationSettings[currentUserUid] as String?;
 
-            // Si modoElegido != null, marcamos el icono en verde
+            // Color del ícono de campana:
             final iconColor = modoElegido != null ? Colors.green : Colors.blue;
 
-            return Card(
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: ListTile(
-                title: Text(title),
-                subtitle: Text(
-                  'Fecha: ${dateTime.toLocal().toString().split('.').first}',
-                ),
-                // Solo si es pendiente, mostramos icono de campana con su color correspondiente
-                trailing: showCompleted
-                    ? null
-                    : IconButton(
-                        icon: Icon(Icons.notifications, color: iconColor),
-                        tooltip: modoElegido == null
-                            ? 'Sin notificación'
-                            : 'Modo: $modoElegido',
-                        onPressed: () {
-                          _showNotificationOptionsDialog(
-                              context, reminderId, title, currentUserUid, dateTime, modoElegido,);
-                        },
-                      ),
-                onTap: () {
-                  // Mostrar diálogo con descripción (si está vacía, “Sin descripción”)
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: Text(title),
-                      content: Text(
-                        (desc == null || desc.trim().isEmpty)
-                            ? 'Sin descripción'
-                            : desc,
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cerrar'),
+            // Calculamos el color de fondo de la tarjeta según la fecha:
+            final now = DateTime.now();
+            Color backgroundColor;
+            if (dateTime.isBefore(now)) {
+              // Fecha ya pasada → rojo pálido
+              backgroundColor = Colors.red.shade100;
+            } else {
+              final diff = dateTime.difference(now);
+              if (diff.inHours <= 24) {
+                // En menos de 24 horas → amarillo pálido
+                backgroundColor = Colors.yellow.shade100;
+              } else {
+                // Más de 24 horas → verde pálido
+                backgroundColor = Colors.green.shade100;
+              }
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Card(
+                color: backgroundColor,
+                child: ListTile(
+                  title: Text(title),
+                  subtitle: Text(
+                    'Fecha: ${_formatDateTime(dateTime)}',
+                  ),
+                  // Solo si es pendiente (showCompleted==false), mostramos ícono de campana:
+                  trailing: showCompleted
+                      ? null
+                      : IconButton(
+                          icon: Icon(Icons.notifications, color: iconColor),
+                          tooltip: modoElegido == null
+                              ? 'Sin notificación'
+                              : 'Modo: $modoElegido',
+                          onPressed: () {
+                            _showNotificationOptionsDialog(
+                              context,
+                              reminderId,
+                              title,
+                              currentUserUid,
+                              dateTime,
+                              modoElegido,
+                            );
+                          },
                         ),
-                      ],
-                    ),
-                  );
-                },
+                  onTap: () {
+                    // Mostrar diálogo con descripción (si está vacía, “Sin descripción”)
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(title),
+                        content: Text(
+                          (desc == null || desc.trim().isEmpty)
+                              ? 'Sin descripción'
+                              : desc,
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cerrar'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             );
           },
         );
       },
     );
+  }
+
+  // Lógica para usar un DateFormat
+  String _formatDateTime(DateTime dt) {
+    final df = DateFormat('MMM dd, yyyy  •  HH:mm');
+    return df.format(dt);
   }
 
   // Diálogo que ofrece 3 opciones las cuales permite personalizar la notificacion que queremos.
