@@ -57,12 +57,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final task = await ref.putFile(file);
     final url = await task.ref.getDownloadURL();
 
-    // 1) Actualizo _photoUrl en memoria
+    // Actualizo _photoUrl en memoria
     setState(() {
       _photoUrl = url;
     });
 
-    // 2) Escribo inmediatamente en Firestore para que el perfil se actualice
+    // Escribo inmediatamente en Firestore para que el perfil se actualice
     await _firestore.collection('users').doc(uid).set({
       'photoUrl': url,
     }, SetOptions(merge: true));

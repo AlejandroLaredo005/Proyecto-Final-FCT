@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:proyecto_final_alejandro/background_task.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
-import 'package:proyecto_final_alejandro/service/notification_service.dart';
 import 'package:workmanager/workmanager.dart';
 
 class RemindersScreen extends StatefulWidget {
@@ -117,51 +116,130 @@ class _RemindersScreenState extends State<RemindersScreen> {
     _descriptionController.clear();
   }
 
-  Future<void> _updateReminder(String reminderId, DateTime newDateTime, String newTitle, String? newDescription, {bool? completed}) async {
-    try {
-      final data = {
-        'title': newTitle,
-        'timestamp': newDateTime,
-        'description': newDescription ?? '',
-      };
-      if (completed != null) {
-        data['completed'] = completed;
-      }
-      await _firestore.collection('reminders').doc(reminderId).update(data);
+  Future<void> _updateReminder(
+    String reminderId,
+    DateTime newDateTime,
+    String newTitle,
+    String? newDescription, {
+    bool? completed,
+  }) async {
+      try {
+        // Obtengo el documento original para leer el timestamp antiguo:
+        final docRef = _firestore.collection('reminders').doc(reminderId);
+        final oldSnap = await docRef.get();
+        DateTime? oldDateTime;
+        if (oldSnap.exists) {
+          final dataOld = oldSnap.data()! as Map<String, dynamic>;
+          final Timestamp tsOld = dataOld['timestamp'] as Timestamp? ?? Timestamp.now();
+          oldDateTime = tsOld.toDate();
+        }
 
-      // Actualizar notificación si es necesario (si cambian la fecha/hora)
-      if (completed == null || completed == false){
-        final int notificationId = newDateTime.millisecondsSinceEpoch ~/ 1000;
-        await NotificationService().scheduleNotification(
-          id: notificationId,
-          title: 'Recordatorio actualizado: $newTitle',
-          body: 'Es hora de: $newTitle',
-          scheduledDate: newDateTime,
+        // Calculo y cancelo las dos notificaciones antiguas (si existía oldDateTime):
+        if (oldDateTime != null) {
+          final oldBaseId = oldDateTime.millisecondsSinceEpoch ~/ 1000;
+          final oldFollowUpId = oldBaseId + 1;
+          await Workmanager().cancelByUniqueName(oldBaseId.toString());
+          await Workmanager().cancelByUniqueName(oldFollowUpId.toString());
+        }
+
+        // Preparo el mapa de actualización en Firestore:
+        final updatedData = <String, dynamic>{
+          'title': newTitle,
+          'timestamp': newDateTime,
+          'description': newDescription ?? '',
+        };
+        if (completed != null) {
+          updatedData['completed'] = completed;
+        }
+        await docRef.update(updatedData);
+
+        // Si no estamos marcando como “completado” (o completed == false),
+        // programo las dos nuevas notificaciones en base a newDateTime:
+        if (completed == null || completed == false) {
+          // Identificadores únicos para la nueva fecha:
+          final newBaseId = newDateTime.millisecondsSinceEpoch ~/ 1000;
+          final newFollowUpId = newBaseId + 1;
+
+          // Datos comunes para cada notificación:
+          final commonData = {
+            'docId': reminderId,
+            'title': newTitle,
+          };
+
+          // Notificación a la hora:
+          final delayA = newDateTime.difference(DateTime.now());
+          await Workmanager().registerOneOffTask(
+            newBaseId.toString(),
+            notificationTask,
+            initialDelay: delayA.isNegative ? Duration.zero : delayA,
+            inputData: {
+              ...commonData,
+              'id':   newBaseId,
+              'title': 'Recordatorio: $newTitle',
+              'body':  'Es hora de: $newTitle',
+              'mode':  'notifyIfPending',
+            },
+            existingWorkPolicy: ExistingWorkPolicy.replace,
+          );
+
+          // Notificación de seguimiento 10 min después:
+          final followUpTime = newDateTime.add(const Duration(minutes: 10));
+          final delayB = followUpTime.difference(DateTime.now());
+          await Workmanager().registerOneOffTask(
+            newFollowUpId.toString(),
+            notificationTask,
+            initialDelay: delayB.isNegative ? Duration.zero : delayB,
+            inputData: {
+              ...commonData,
+              'id':    newFollowUpId,
+              'title': '🔔 Recordatorio pendiente: $newTitle',
+              'body':  'Si no has completado "$newTitle", aún estás a tiempo',
+              'mode':  'notifyIfPending',
+            },
+            existingWorkPolicy: ExistingWorkPolicy.replace,
+          );
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recordatorio actualizado')),
         );
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recordatorio actualizado')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al actualizar: $e')),
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: $e')),
       );
     }
   }
 
   Future<void> _deleteReminder(String reminderId) async {
-    try {
-      await _firestore.collection('reminders').doc(reminderId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recordatorio eliminado')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar: $e')),
-      );
+  try {
+    // Obtengo el documento para leer su timestamp:
+    final docSnap = await _firestore.collection('reminders').doc(reminderId).get();
+    if (docSnap.exists) {
+      final data = docSnap.data() as Map<String, dynamic>;
+      final Timestamp ts = data['timestamp'] as Timestamp? ?? Timestamp.now();
+      final DateTime dt = ts.toDate();
+
+      // Calculo los dos IDs que programamos originalmente:
+      final baseId = dt.millisecondsSinceEpoch ~/ 1000;
+      final followUpId = baseId + 1;
+
+      // Cancelo las dos tareas programadas en Workmanager:
+      await Workmanager().cancelByUniqueName(baseId.toString());
+      await Workmanager().cancelByUniqueName(followUpId.toString());
     }
+
+    // Ahora sí borro el documento de Firestore:
+    await _firestore.collection('reminders').doc(reminderId).delete();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Recordatorio eliminado')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error al eliminar: $e')),
+    );
   }
+}
 
   void _showEditReminderDialog(String reminderId, String currentTitle, String? currentDescription, DateTime currentDateTime) {
     DateTime selectedDate = currentDateTime;
