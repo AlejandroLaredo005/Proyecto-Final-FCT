@@ -421,7 +421,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? CircleAvatar(backgroundImage: NetworkImage(photo))
                               : const CircleAvatar(child: Icon(Icons.person)),
                           title: Text(name),
-                          subtitle: Text('UID: $supUid'),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             tooltip: 'Dejar de supervisar',
@@ -495,7 +494,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ? CircleAvatar(backgroundImage: NetworkImage(otherPhoto))
                             : const CircleAvatar(child: Icon(Icons.person_outline)),
                         title: Text(otherName),
-                        subtitle: Text('UID: $otherUid'),
                          trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           tooltip: 'Eliminar supervisor',

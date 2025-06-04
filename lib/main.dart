@@ -17,7 +17,7 @@ void main() async{
   debugPrint('▶️ [main] Después de init notifications');
   Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: true, 
+    isInDebugMode: false, 
   );
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
