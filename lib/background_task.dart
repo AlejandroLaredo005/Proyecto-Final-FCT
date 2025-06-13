@@ -4,10 +4,16 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 
-// Identificador de la tarea
+/// Identificador de la tarea
 const notificationTask = "notificationTask";
 
-// Este es el entry-point que Android invoca
+/// Entry-point de Workmanager.
+/// 
+/// Android invoca esta función en background para despachar tareas agendadas.
+/// Inicializa Firestore y el plugin de notificaciones, luego:
+///  - Lee el documento del recordatorio en Firestore.
+///  - Comprueba su campo `completed` y la opción `mode`.
+///  - Muestra la notificación solo si coincide con la lógica de `mode`.
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
@@ -44,8 +50,8 @@ void callbackDispatcher() {
 
         final completed = doc.data()?['completed'] as bool? ?? false;
 
-        //   - Si mode == "notifyIfPending", notificamos solo si completed == false
-        //   - Si mode == "notifyIfCompleted", notificamos solo si completed == true
+        //  Si mode == "notifyIfPending", notificamos solo si completed == false
+        //  Si mode == "notifyIfCompleted", notificamos solo si completed == true
         bool shouldShow = false;
         if (mode == "notifyIfPending" && completed == false) {
           shouldShow = true;

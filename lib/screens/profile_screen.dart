@@ -9,6 +9,11 @@ import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/screens/supervised_reminders_screen.dart';
 import 'package:proyecto_final_alejandro/screens/supervision_request_screen.dart';
 
+/// Pantalla de perfil donde el usuario puede Establecer su nombre y foto
+/// 
+/// También puede ver su codigo de supervision con el cual otros usuarios
+/// podrán agregarlo para supervisarlo
+/// También se pueden ver las personas que me supervisan y las que superviso
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -17,11 +22,17 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  /// Controlador para el campo de texto del nombre de usuario
   final _nameController = TextEditingController();
+  /// URL de la foto de perfil almacenada en Firebase Storage
   String? _photoUrl;
+  /// Indicador de carga
   bool _loading = false;
+  /// Instancia de Firestore
   final _firestore = FirebaseFirestore.instance;
+  /// Instancia de Firebase Auth
   final _auth = FirebaseAuth.instance;
+  /// Selector de imágenes desde galería o cámara
   final _picker = ImagePicker();  
 
   @override
@@ -29,6 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
   }
 
+  /// Genera un código de supervisión de 6 dígitos aleatorios
   String _generateCode() {
     final rnd = Random();
     String code = '';
@@ -38,6 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return code;
   }
 
+  /// Abre la galería para seleccionar una imagen y la sube a Firebase Storage
+  /// Actualiza la URL en Firestore y en memoria
   Future<void> _pickAndUploadImage() async {
   final uid = _auth.currentUser?.uid;
   if (uid == null) return;
@@ -75,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+  /// Guarda el nombre y la foto en Firestore
   Future<void> _saveProfile() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
@@ -98,12 +113,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Cierra la sesión del usuario y redirige al login
   Future<void> _signOut() async {
     await _auth.signOut();
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, AppRoutes.inicioSesion);
   }
 
+  /// Elimina la cuenta del usuario, sus datos en Firestore y Auth
   Future<void> _deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -142,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Elimina a `supUid` del array “supervisors” de **mi** documento.
+  /// Elimina a `supUid` del array 'supervisors' de mi documento en Firestore
   Future<void> _removeSupervised(String supUid) async {
     final myUid = _auth.currentUser?.uid;
     if (myUid == null) return;
@@ -161,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Elimina a **mí** (mi UID) del array “supervisors” de `otherUid`.
+  /// Elimina mi UID del array 'supervisors' del documento del usuario `otherUid`
   Future<void> _removeSupervisor(String otherUid) async {
     final myUid = _auth.currentUser?.uid;
     if (myUid == null) return;

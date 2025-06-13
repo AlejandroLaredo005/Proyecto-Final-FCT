@@ -2,6 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+/// Pantalla para enviar solicitudes de supervisión a otro usuario.
+/// 
+/// El usuario introduce el código de supervisión de la persona que desea
+/// supervisar. Si el código es válido y no existe una solicitud previa,
+/// se añade una petición pendiente en Firestore.
 class AddSupervisedScreen extends StatefulWidget {
   const AddSupervisedScreen({super.key});
 
@@ -10,10 +15,20 @@ class AddSupervisedScreen extends StatefulWidget {
 }
 
 class _AddSupervisedScreenState extends State<AddSupervisedScreen> {
+  /// Controlador para el campo de texto del código de supervisión.
   final _codeController = TextEditingController();
+  /// Indicador de carga para deshabilitar la UI mientras se procesa la petición.
   bool _loading = false;
+  /// Mensaje de error a mostrar si la operación falla o el código no es válido.
   String? _error;
 
+  /// Envía la solicitud de supervisión con el código introducido.
+  ///
+  /// - Valida que el campo no esté vacío.
+  /// - Busca en Firestore un usuario cuyo `supervisionCode` coincida.
+  /// - Comprueba que no se trate de uno mismo ni exista ya una petición pendiente.
+  /// - Si todo es correcto, añade el UID del usuario actual
+  ///   al array `pendingSupervisionRequests` del usuario destino.
   Future<void> _sendRequest() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
@@ -47,14 +62,14 @@ class _AddSupervisedScreenState extends State<AddSupervisedScreen> {
         if (targetUid == myUid) {
           setState(() => _error = 'No puedes solicitar supervisión a ti mismo.');
         } else {
-          // 1) Revisar si ya existe petición pendiente:
+          // Revisar si ya existe petición pendiente:
           final List<dynamic>? pendientes =
               targetDoc.data()['pendingSupervisionRequests'] as List<dynamic>?;
 
           if (pendientes != null && pendientes.contains(myUid)) {
             setState(() => _error = 'Ya has enviado una solicitud pendiente.');
           } else {
-            // 2) Añadimos a array “pendingSupervisionRequests” de target:
+            // Añadimos a array “pendingSupervisionRequests” de target:
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(targetUid)

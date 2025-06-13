@@ -5,8 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:proyecto_final_alejandro/background_task.dart';
 import 'package:workmanager/workmanager.dart';
 
+/// Pantalla que muestra los recordatorios de un usuario supervisado.
+/// Permite ver tanto pendientes como completados, pero sin editar ni borrar.
 class SupervisedRemindersScreen extends StatelessWidget {
+  /// UID de la persona supervisada cuyos recordatorios se muestran.
   final String superviseeUid;
+  /// Nombre para mostrar de la persona supervisada.
   final String superviseeName;
 
   const SupervisedRemindersScreen({
@@ -48,8 +52,11 @@ class SupervisedRemindersScreen extends StatelessWidget {
   }
 }
 
+/// Widget interno que construye la lista de recordatorios según estado.
 class _RemindersList extends StatelessWidget {
+  /// UID del usuario supervisado.
   final String superviseeUid;
+  /// Si es true, muestra completados; si false, pendientes.
   final bool showCompleted;
 
   const _RemindersList({
@@ -186,13 +193,13 @@ class _RemindersList extends StatelessWidget {
     );
   }
 
-  // Lógica para usar un DateFormat
+  /// Formatea la fecha para mostrarla de forma legible.
   String _formatDateTime(DateTime dt) {
     final df = DateFormat('MMM dd, yyyy  •  HH:mm');
     return df.format(dt);
   }
 
-  // Diálogo que ofrece 3 opciones las cuales permite personalizar la notificacion que queremos.
+  /// Muestra el diálogo con opciones de notificación y gestiona su programación o cancelación.
   void _showNotificationOptionsDialog(
     BuildContext context,
     String reminderId,

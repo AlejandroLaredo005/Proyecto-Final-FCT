@@ -6,6 +6,10 @@ import 'package:proyecto_final_alejandro/background_task.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:workmanager/workmanager.dart';
 
+/// Pantalla principal de recordatorios donde el usuario puede:
+/// - Añadir nuevos recordatorios con opciones de recurrencia.
+/// - Ver y filtrar recordatorios pendientes o completados.
+/// - Editar, ver detalles o eliminar recordatorios existentes.
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
 
@@ -14,9 +18,13 @@ class RemindersScreen extends StatefulWidget {
 }
 
 class _RemindersScreenState extends State<RemindersScreen> {
+  /// Instancia de Firestore para acceder a la colección 'reminders'
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  /// Controlador de texto para el título del recordatorio
   final TextEditingController _titleController = TextEditingController();
+  /// Controlador de texto para la descripción del recordatorio
   final TextEditingController _descriptionController = TextEditingController();
+  /// Control para alternar la vista entre pendientes y completados
   bool _showCompleted = false;
 
   @override
@@ -26,6 +34,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
     super.dispose();
   }
 
+  /// Añade uno o varios recordatorios según la recurrencia seleccionada.
+  /// - [firstDateTime]: fecha y hora del primer recordatorio.
+  /// - [recurrence]: 'none', 'daily', 'weekly', o 'custom'.
+  /// - [endDate]: fecha fin para recurrencia (si aplica).
+  /// - [customIntervalDays]: intervalo en días para 'custom'.
   Future<void> _addReminder(DateTime firstDateTime, String recurrence, DateTime? endDate, int customIntervalDays) async {
     final String title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
@@ -77,7 +90,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         'title': title,
       };
       
-      // A) Notificación principal en dt
+      // Notificación principal en dt
       final delay = dt.difference(DateTime.now());
       Workmanager().registerOneOffTask(
         baseId.toString(),  // unique name
@@ -93,7 +106,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
 
-      // B) Notificación de seguimiento 10 minutos despues
+      // Notificación de seguimiento 10 minutos despues
       final followUpTime = dt.add(const Duration(minutes: 10));
       Workmanager().registerOneOffTask(
         followUpId.toString(),
@@ -116,6 +129,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
     _descriptionController.clear();
   }
 
+  /// Actualiza un recordatorio y reprograma notificaciones si es necesario.
+  /// - Cancela tareas antiguas basadas en timestamp anterior.
+  /// - Actualiza campos en Firestore.
+  /// - Reprograma notificaciones si [completed] es false o nulo.
   Future<void> _updateReminder(
     String reminderId,
     DateTime newDateTime,
@@ -210,6 +227,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
   }
 
+  /// Elimina un recordatorio de Firestore y cancela sus notificaciones
   Future<void> _deleteReminder(String reminderId) async {
   try {
     // Obtengo el documento para leer su timestamp:
@@ -241,6 +259,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 }
 
+  /// Muestra un diálogo modal para editar un recordatorio existente.
+  ///
+  /// Parámetros:
+  /// - [reminderId]: ID del documento de Firestore del recordatorio a editar.
+  /// - [currentTitle]: título actual del recordatorio.
+  /// - [currentDescription]: descripción actual (opcional).
+  /// - [currentDateTime]: fecha y hora actuales del recordatorio.
+  ///
+  /// El diálogo incluye campos para modificar título, descripción, fecha y hora.
+  /// Al guardar, llama a [_updateReminder] para aplicar los cambios y reprogramar notificaciones.
   void _showEditReminderDialog(String reminderId, String currentTitle, String? currentDescription, DateTime currentDateTime) {
     DateTime selectedDate = currentDateTime;
     TimeOfDay selectedTime = TimeOfDay(hour: selectedDate.hour, minute: selectedDate.minute);
@@ -344,6 +372,15 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  /// Muestra un diálogo modal para crear un nuevo recordatorio.
+  ///
+  /// Inicializa valores por defecto para fecha, hora, tipo de recurrencia,
+  /// fecha de fin y días de intervalo personalizado. Permite al usuario:
+  /// - Escribir título y descripción.
+  /// - Seleccionar fecha y hora.
+  /// - Elegir repetición (ninguna, diaria, semanal o cada X días).
+  /// - Si aplica, indicar hasta cuándo se repite.
+  /// Al pulsar "Guardar", construye la fecha completa y llama a [_addReminder].
   void _showAddReminderDialog() { 
     DateTime selectedDate = DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.now();
@@ -513,12 +550,25 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
-  // Lógica para usar un DateFormat
+  /// Lógica para usar un DateFormat para adaptar la fecha al formato que queremos
   String _formatDateTime(DateTime dt) {
     final df = DateFormat('MMM dd, yyyy  •  HH:mm');
     return df.format(dt);
   }
 
+  /// Muestra un diálogo de solo lectura con detalles de un recordatorio.
+  ///
+  /// Parámetros:
+  /// - [id]: ID interno del recordatorio (no se muestra, pero sirve referencia).
+  /// - [title]: Título que aparecerá en el encabezado.
+  /// - [dateTime]: Fecha y hora programadas.
+  /// - [description]: Descripción opcional.
+  /// - [completed]: Estado (true = completado, false = pendiente).
+  ///
+  /// El diálogo incluye:
+  /// 1. Fecha y hora formateadas en negrita.
+  /// 2. Texto “Descripción:” subrayado y el contenido si existe.
+  /// 3. Texto “Estado:” en negrita y “Completado” o “Pendiente” según corresponda.
   void _showViewReminderDialog(
     String id,
     String title,
@@ -680,11 +730,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 }
 
-// Widget que aplica estilos a cada recordatorio y asigna el fondo según:
-//  - si ya pasó: rojo suave
-//  - si falta ≤ 24 h: amarillo suave
-//  - si falta > 24 h: verde suave
-//  - si está completado: gris suave
+/// Widget que aplica estilos a cada recordatorio y asigna el fondo según:
+///  - si ya pasó: rojo suave
+///  - si falta ≤ 24 h: amarillo suave
+///  - si falta > 24 h: verde suave
+///  - si está completado: gris suave
 class _ReminderCard extends StatelessWidget {
   final String id;
   final String title;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/auth_service.dart';
 
+/// Pantalla de registro de nuevos usuarios mediante email/contraseña.
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
 
@@ -10,13 +11,23 @@ class RegistroScreen extends StatefulWidget {
 }
 
 class _RegistroScreenState extends State<RegistroScreen> {
+  /// Controlador para el campo de correo electrónico.
   final TextEditingController _emailController = TextEditingController();
+  /// Controlador para el campo de contraseña.
   final TextEditingController _passwordController = TextEditingController();
+  /// Controlador para confirmar contraseña.
   final TextEditingController _confirmController = TextEditingController();
 
+  /// Indicador de carga mientras se procesa el registro.
   bool _loading = false;
+  /// Mensaje de error a mostrar en pantalla.
   String _error = '';
 
+  /// Ejecuta el flujo de registro:
+  /// 1. Valida que los campos no estén vacíos.
+  /// 2. Comprueba que contraseña y confirmación coincidan.
+  /// 3. Llama a AuthService para crear el usuario.
+  /// 4. Navega a la pantalla de Login si el registro es exitoso.
   void _registrar() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;

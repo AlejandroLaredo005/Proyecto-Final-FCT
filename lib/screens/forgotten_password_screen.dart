@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:proyecto_final_alejandro/service/auth_service.dart';
 
+/// Pantalla que permite al usuario solicitar un restablecimiento de contraseña
+/// 
+/// El usuario introduce su correo y se le manda un correo para cambiarla
 class PasswordResetScreen extends StatefulWidget {
   const PasswordResetScreen({super.key});
 
@@ -9,10 +12,14 @@ class PasswordResetScreen extends StatefulWidget {
 }
 
 class _PasswordResetScreenState extends State<PasswordResetScreen> {
+  /// Controlador para el campo de texto del correo electrónico
   final TextEditingController emailController = TextEditingController();
+  /// Indica si estamos procesando la petición
   bool _loading = false;
+  /// Mensaje de error para mostrar al usuario
   String? _error;
 
+  /// Envia la petición de restablecimiento de contraseña
   void _resetPassword() async {
     setState(() {
       _loading = true;

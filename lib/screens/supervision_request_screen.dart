@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+/// Pantalla que muestra las solicitudes de supervisión entrantes.
+/// Aquí el usuario puede aceptar o rechazar peticiones de otros usuarios.
 class SupervisionRequestsScreen extends StatelessWidget {
   const SupervisionRequestsScreen({super.key});
 
@@ -63,14 +65,17 @@ class SupervisionRequestsScreen extends StatelessWidget {
                       snap2.data!.data() as Map<String, dynamic>;
                   final requesterName =
                       requesterData['name'] as String? ?? '(Sin nombre)';
+                  final requesterPhoto = 
+                            requesterData['photoUrl'] as String?;
 
                   return Card(
                     margin:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: ListTile(
-                      leading: const Icon(Icons.person),
+                      leading: requesterPhoto != null
+                              ? CircleAvatar(backgroundImage: NetworkImage(requesterPhoto))
+                              : const CircleAvatar(child: Icon(Icons.person)),
                       title: Text(requesterName),
-                      subtitle: Text('UID: $requesterUid'),
                       trailing: Wrap(
                         spacing: 8,
                         children: [

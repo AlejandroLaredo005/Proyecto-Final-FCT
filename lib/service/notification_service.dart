@@ -3,6 +3,10 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/foundation.dart';
 
+/// Servicio singleton para manejar notificaciones locales.
+/// 
+/// Encapsula la inicialización del plugin y la programación
+/// de notificaciones inmediatas o programadas.
 class NotificationService {
   NotificationService._();
   static final NotificationService _instance = NotificationService._();
@@ -12,10 +16,10 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   /// Inicializa el servicio de notificaciones:
-  /// - Zonas horarias
-  /// - Plugin
-  /// - Permisos Android 13+
-  /// - Canal de notificaciones Android 8+
+  /// 1. Configura las zonas horarias.
+  /// 2. Inicializa el plugin.
+  /// 3. Solicita permisos en Android 13+.
+  /// 4. Crea el canal de notificaciones en Android 8+.
   Future<void> init() async {
     // Inicializa zonas horarias
     tz.initializeTimeZones();
@@ -50,7 +54,12 @@ class NotificationService {
     }
   }
 
-  /// Programa una notificación futura
+  /// Programa una notificación futura.
+  ///
+  /// [id]: identificador único de la notificación.  
+  /// [title]: título mostrado.  
+  /// [body]: cuerpo del mensaje.  
+  /// [scheduledDate]: fecha y hora en la que debe saltar.
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -85,7 +94,9 @@ class NotificationService {
     }
   }
 
-  /// Muestra una notificación inmediata (para pruebas)
+  /// Muestra una notificación inmediata.
+  ///
+  /// Utilizado principalmente para pruebas.
   Future<void> showNotification({
     required int id,
     required String title,

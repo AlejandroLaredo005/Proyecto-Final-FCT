@@ -10,6 +10,15 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'package:proyecto_final_alejandro/service/notification_service.dart';
 
+/// Punto de entrada principal de la aplicación.
+///
+/// Aquí se inicializa:
+/// 1. Flutter bindings (necesario para llamadas asíncronas antes de runApp)
+/// 2. Servicio de notificaciones locales
+/// 3. Workmanager para tareas en background
+/// 4. Firebase
+///
+/// Finalmente, arranca el widget raíz [MyApp].
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   debugPrint('▶️ [main] Antes de init notifications');
@@ -25,6 +34,13 @@ void main() async{
   runApp(const MyApp());
 }
 
+/// Widget raíz de la aplicación.
+///
+/// Configura:
+/// - Título y tema de la app.
+/// - Ocultación de la bandera de debug.
+/// - Home dinámico según el estado de autenticación.
+/// - Rutas nombradas.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

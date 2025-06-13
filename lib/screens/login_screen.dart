@@ -3,6 +3,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/auth_service.dart';
 
+/// Pantalla de inicio de sesión donde el usuario puede autenticarse
+/// 
+/// El usuario introduce el correo y contraseña y firebase comprobará que los datos coinciden
+/// Tambien puede iniciar con google
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -11,13 +15,19 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  /// Controlador para el campo de correo electrónico
   final TextEditingController emailController = TextEditingController();
+  /// Controlador para el campo de contraseña
   final TextEditingController passwordController = TextEditingController();
+  /// Servicio de autenticación
   final AuthService _authService = AuthService();
 
+  /// Indicador de carga mientras se procesa la autenticación
   bool _isLoading = false;
+  /// Almacena mensaje de error para mostrar en pantalla
   String? _error;
 
+  /// Intenta iniciar sesión con email/contraseña
   void _signIn() async {
     setState(() {
       _isLoading = true;
@@ -40,6 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Intenta iniciar sesión mediante Google Sign-In
   void _signInWithGoogle() async {
     setState(() {
       _isLoading = true;

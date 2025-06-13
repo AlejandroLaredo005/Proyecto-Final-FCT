@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
-        android:label="proyecto_final_alejandro"
+        android:label="Recordatorios y Control"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
