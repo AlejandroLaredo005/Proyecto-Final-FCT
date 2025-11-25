@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:proyecto_final_alejandro/routes/app_routes.dart';
 import 'package:proyecto_final_alejandro/service/auth_service.dart';
 
@@ -131,7 +130,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    icon: const FaIcon(FontAwesomeIcons.google, color: Colors.red),
+                    icon: Image.asset(
+                      'assets/logo_google.webp',
+                      width: 20,
+                      height: 20,
+                    ),
                     label: const Text('Continuar con Google'),
                     onPressed: _isLoading ? null : _signInWithGoogle,
                   ),

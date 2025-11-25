@@ -216,6 +216,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    // Nos aseguramos de que exista el documento de perfil
+    _firestore.collection('users').doc(uid).get().then((doc) {
+      if (!doc.exists) {
+        final code = _generateCode();
+        _firestore.collection('users').doc(uid).set({
+          'supervisionCode': code,
+          'supervisors': <String>[],
+          'pendingSupervisionRequests': <String>[],
+          // name y photoUrl se quedan null hasta que el usuario los rellene
+        }, SetOptions(merge: true));
+      }
+    });
+
     // Usamos un StreamBuilder para “escuchar” el documento de 'users/{uid}'
     return StreamBuilder<DocumentSnapshot>(
       stream: _firestore.collection('users').doc(uid).snapshots(),
