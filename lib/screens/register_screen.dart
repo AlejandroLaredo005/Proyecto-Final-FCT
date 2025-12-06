@@ -81,20 +81,29 @@ class _RegistroScreenState extends State<RegistroScreen> {
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Correo electrónico'),
               keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                    labelText: 'Correo electrónico',
+                    border: OutlineInputBorder(),
+                  ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Contraseña'),
               obscureText: true,
+              decoration: const InputDecoration(
+                    labelText: 'Contraseña',
+                    border: OutlineInputBorder(),
+                  ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _confirmController,
-              decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
               obscureText: true,
+              decoration: const InputDecoration(
+                    labelText: 'Confirmar contraseña',
+                    border: OutlineInputBorder(),
+                  ),
             ),
             const SizedBox(height: 16),
             if (_error.isNotEmpty)
