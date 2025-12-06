@@ -46,13 +46,18 @@ class _RegistroScreenState extends State<RegistroScreen> {
       return;
     }
 
+    if (password.length < 6) {
+      setState(() => _error = 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       await AuthService().registerWithEmail(email, password);
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, AppRoutes.inicioSesion);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = "Ha ocurrido un error al registrarse, compruebe que todos los campos esten correctos e intentelo de nuevo");
     } finally {
       setState(() => _loading = false);
     }

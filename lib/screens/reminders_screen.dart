@@ -222,7 +222,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al actualizar: $e')),
+          SnackBar(content: Text('Error al actualizar el recordatorio, compruebe los datos e intentelo de nuevoS')),
       );
     }
   }
@@ -254,7 +254,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al eliminar: $e')),
+      SnackBar(content: Text('Error al eliminar el recordatorio, intentelo de nuevo')),
     );
   }
 }
@@ -673,7 +673,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
+                return Center(child: Text('Error al cargar, compruebe su conexion e intentelo de nuevo'));
               }
               final docs = snapshot.data?.docs ?? [];
               if (docs.isEmpty) {

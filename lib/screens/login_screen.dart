@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacementNamed(context, AppRoutes.recordatorios);
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = "Error al introducir el correo o la contraseña, compruebelo otra vez";
       });
     } finally {
       setState(() {
@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacementNamed(context, AppRoutes.recordatorios);
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = "Ha ocurrido un error al iniciar sesion con google, intentelo de nuevo.";
       });
     } finally {
       setState(() {

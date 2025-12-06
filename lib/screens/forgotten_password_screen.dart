@@ -35,7 +35,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       Navigator.pop(context);
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = "Ha habido un error al mandar el correo para reiniciar la contraseña, comprueba que el correo esta bien escrito e intentalo de nuevo";
       });
     } finally {
       setState(() {

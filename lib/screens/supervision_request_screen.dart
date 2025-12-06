@@ -32,7 +32,7 @@ class SupervisionRequestsScreen extends StatelessWidget {
           if (snapshot.hasError ||
               !snapshot.hasData ||
               !snapshot.data!.exists) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error al cargar solicitudes, compruebe su conexion e intentelo de nuevo'));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;

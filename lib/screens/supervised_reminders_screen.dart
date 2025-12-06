@@ -82,7 +82,7 @@ class _RemindersList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('Error al cargar los recordatorios, compruebe su conexion e intentelo de nuevo'));
         }
         final docs = snapshot.data?.docs ?? [];
         if (docs.isEmpty) {

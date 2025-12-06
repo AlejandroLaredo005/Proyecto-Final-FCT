@@ -82,7 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }, SetOptions(merge: true));
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al subir imagen: $e')),
+      SnackBar(content: Text('Error al subir la imagen, intentelo de nuevo')),
     );
   } finally {
     setState(() => _loading = false);
@@ -106,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar perfil: $e')),
+        SnackBar(content: Text('Error al guardar perfil, intentelo de nuevo')),
       );
     } finally {
       setState(() => _loading = false);
@@ -152,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Navigator.pushReplacementNamed(context, AppRoutes.inicioSesion);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar cuenta: $e')),
+        SnackBar(content: Text('Error al eliminar cuenta, intentelo de nuevo')),
       );
     } finally {
       setState(() => _loading = false);
@@ -173,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar supervisado: $e')),
+        SnackBar(content: Text('Error al eliminar al supervisado, intentelo de nuevo mas tarde')),
       );
     }
   }
@@ -192,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar supervisor: $e')),
+        SnackBar(content: Text('Error al eliminar al supervisor, intentelo mas tarde')),
       );
     }
   }
@@ -240,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
         if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
           return Scaffold(
-            body: Center(child: Text('Error al cargar perfil')),
+            body: Center(child: Text('Error al cargar perfil, compruebe su conexion e intentelo de nuevo')),
           );
         }
 
@@ -501,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }
                   if (snap2.hasError) {
                     return Center(
-                        child: Text('Error: ${snap2.error}'));
+                        child: Text('Error al cargar a los supervisores, revise su conexion e intentelo de nuevo'));
                   }
                   final docs = snap2.data?.docs ?? [];
                   if (docs.isEmpty) {

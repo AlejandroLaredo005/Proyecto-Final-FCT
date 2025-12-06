@@ -85,7 +85,7 @@ class _AddSupervisedScreenState extends State<AddSupervisedScreen> {
         }
       }
     } catch (e) {
-      setState(() => _error = 'Error al enviar solicitud: $e');
+      setState(() => _error = 'Error al enviar solicitud, compruebe los datos e intentelo de nuevo');
     } finally {
       setState(() => _loading = false);
     }
