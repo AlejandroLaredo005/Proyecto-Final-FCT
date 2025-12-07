@@ -42,7 +42,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
   Future<void> _addReminder(DateTime firstDateTime, String recurrence, DateTime? endDate, int customIntervalDays) async {
     final String title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
-    if (title.isEmpty) return;
+    if (title.isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No puedes dejar el titulo vacio, intentelo de nuevo sin dejarlo vacio')),
+      );
+      return;
+    }
 
     final user = FirebaseAuth.instance.currentUser;
 
@@ -127,6 +132,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
     _titleController.clear();
     _descriptionController.clear();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Recordatorio creado correctamente')),
+    );
   }
 
   /// Actualiza un recordatorio y reprograma notificaciones si es necesario.
@@ -140,6 +149,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
     String? newDescription, {
     bool? completed,
   }) async {
+    if (newTitle.isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No puedes dejar el titulo vacio, editelo de nuevo sin dejarlo vacio')),
+      );
+      return;
+    }
       try {
         // Obtengo el documento original para leer el timestamp antiguo:
         final docRef = _firestore.collection('reminders').doc(reminderId);
