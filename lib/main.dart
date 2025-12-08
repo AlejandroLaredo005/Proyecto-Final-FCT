@@ -4,6 +4,7 @@ import 'package:proyecto_final_alejandro/firebase_options.dart';
 import 'package:proyecto_final_alejandro/screens/login_screen.dart';
 import 'package:proyecto_final_alejandro/screens/reminders_screen.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'routes/imports.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -50,6 +51,20 @@ class MyApp extends StatelessWidget {
       title: 'Recordatorios',
       debugShowCheckedModeBanner: false,
       theme: AppThemes.appTheme,
+
+      // Añadimos libreria para detectar el idioma del telefono
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
+      // Idiomas soportados por la aplicacion (ingles y español)
+      supportedLocales: const [
+        Locale('es'),
+        Locale('en'),
+      ],
+
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
