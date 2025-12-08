@@ -75,6 +75,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
         dates.add(firstDateTime);
     }
 
+    // Límite por lote (no crear mas de 20 a la vez)
+    const int maxReminders = 20;
+    if (dates.length > maxReminders) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Has seleccionado un rango muy grande.\nMáximo permitido: $maxReminders recordatorios.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Si todo OK, creamos cada recordatorio y programamos notificaciones
     for (var dt in dates) {
       // Añade el recordatorio y captura la referencia
       final docRef = await _firestore.collection('reminders').add({
