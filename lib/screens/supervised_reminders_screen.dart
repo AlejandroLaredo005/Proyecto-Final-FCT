@@ -213,11 +213,20 @@ class _RemindersList extends StatelessWidget {
       showDialog(
         context: context,
         builder: (ctx) {
+          // Traducimos el modo de notificacion de la base de datos al español
+          String modoActualTraducido = "";
+          if (modoActual.contains("notifyIfCompleted")){
+            modoActualTraducido = "Notificar si se completa";
+          } else if (modoActual.contains("notifyIfPending")) {
+            modoActualTraducido = "Notificar si sigue Pendiente";
+          } else {
+            modoActualTraducido = "Cuando cumpla y 10 min despues";
+          }
           return AlertDialog(
             title: const Text('Notificación ya programada'),
             content: Text(
               'Ya tienes una notificación programada con modo:\n\n'
-              '“$modoActual”\n\n'
+              '“$modoActualTraducido”\n\n'
               'Si lo deseas, para cambiarlo primero debes eliminar la notificación anterior.',
             ),
             actions: [
