@@ -95,11 +95,61 @@ class _RemindersList extends StatelessWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final doc = docs[index];
+        // Agrupar los recordatorios por día 
+        final Map<DateTime, List<QueryDocumentSnapshot>> grouped = {};
+        for (final doc in docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final Timestamp ts = data['timestamp'] as Timestamp? ?? Timestamp.now();
+          final DateTime fullDate = ts.toDate();
+          final DateTime dayKey =
+              DateTime(fullDate.year, fullDate.month, fullDate.day);
+          grouped.putIfAbsent(dayKey, () => []).add(doc);
+        }
+
+        // Ordenar las claves (fechas) ascendentemente
+        final sortedKeys = grouped.keys.toList()..sort();
+
+        // Construir la lista de widgets con encabezados por fecha
+        final List<Widget> children = [];
+        for (final day in sortedKeys) {
+          // Cabecera de los recordatorios
+          final String header = _formatDate(context, day);
+
+          children.add(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    header,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  // Contador pequeño que muestra el numero de recordatorios de cada día
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${grouped[day]!.length}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+
+          children.add(const SizedBox(height: 4));
+
+          // Añadir cada recordatorio de ese día
+          for (final doc in grouped[day]!) {
             final data = doc.data() as Map<String, dynamic>;
             final title = data['title'] as String? ?? '(Sin título)';
             final desc = data['description'] as String?;
@@ -123,79 +173,98 @@ class _RemindersList extends StatelessWidget {
             final now = DateTime.now();
             Color backgroundColor;
             if (dateTime.isBefore(now)) {
-              // Fecha ya pasada → rojo pálido
+              // Color rojo si ya ha pasado la fecha
               backgroundColor = Colors.red.shade100;
             } else {
               final diff = dateTime.difference(now);
               if (diff.inHours <= 24) {
-                // En menos de 24 horas → amarillo pálido
+                // Color amarillo si quedan menos de 24 horas para la fecha
                 backgroundColor = Colors.yellow.shade100;
               } else {
-                // Más de 24 horas → verde pálido
+                // Color verde si aun quedan mas de 24h para la fecha
                 backgroundColor = Colors.green.shade100;
               }
             }
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Card(
-                color: backgroundColor,
-                child: ListTile(
-                  title: Text(title),
-                  subtitle: Text(
-                    'Fecha: ${_formatDateTime(dateTime)}',
-                  ),
-                  // Solo si es pendiente (showCompleted==false), mostramos ícono de campana:
-                  trailing: showCompleted
-                      ? null
-                      : IconButton(
-                          icon: Icon(Icons.notifications, color: iconColor),
-                          tooltip: modoElegido == null
-                              ? 'Sin notificación'
-                              : 'Modo: $modoElegido',
-                          onPressed: () {
-                            _showNotificationOptionsDialog(
-                              context,
-                              reminderId,
-                              title,
-                              currentUserUid,
-                              dateTime,
-                              modoElegido,
-                            );
-                          },
-                        ),
-                  onTap: () {
-                    // Mostrar diálogo con descripción (si está vacía, “Sin descripción”)
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text(title),
-                        content: Text(
-                          (desc == null || desc.trim().isEmpty)
-                              ? 'Sin descripción'
-                              : desc,
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cerrar'),
+            // Muestra los recordatorios
+            children.add(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Card(
+                  color: backgroundColor,
+                  child: ListTile(
+                    title: Text(title),
+                    subtitle: Text(
+                      // Usa el formato con locale según el contexto
+                      'Fecha: ${_formatDateTime(context, dateTime)}',
+                    ),
+                    // Solo si es pendiente (showCompleted==false), mostramos ícono de campana:
+                    trailing: showCompleted
+                        ? null
+                        : IconButton(
+                            icon: Icon(Icons.notifications, color: iconColor),
+                            tooltip:
+                                modoElegido == null ? 'Sin notificación' : 'Modo: $modoElegido',
+                            onPressed: () {
+                              _showNotificationOptionsDialog(
+                                context,
+                                reminderId,
+                                title,
+                                currentUserUid,
+                                dateTime,
+                                modoElegido,
+                              );
+                            },
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                    onTap: () {
+                      // Mostrar diálogo con descripción (si está vacía, “Sin descripción”)
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: Text(title),
+                          content: Text(
+                            (desc == null || desc.trim().isEmpty)
+                                ? 'Sin descripción'
+                                : desc,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cerrar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             );
-          },
+          }
+
+          // Separador entre días
+          children.add(const SizedBox(height: 8));
+          children.add(const Divider(height: 1));
+        }
+
+        return ListView(
+          children: children,
         );
       },
     );
   }
 
-  /// Formatea la fecha para mostrarla de forma legible.
-  String _formatDateTime(DateTime dt) {
-    final df = DateFormat('MMM dd, yyyy  •  HH:mm');
+  /// Formatea la fecha+hora respetando el locale actual
+  String _formatDateTime(BuildContext context, DateTime dt) {
+    final locale = Localizations.localeOf(context).toString();
+    final df = DateFormat('d MMMM yyyy • HH:mm', locale);
+    return df.format(dt);
+  }
+
+  /// Formatea la fecha+hora respetando el locale actual
+  String _formatDate(BuildContext context, DateTime dt) {
+    final locale = Localizations.localeOf(context).toString();
+    final df = DateFormat('d MMMM yyyy', locale);
     return df.format(dt);
   }
 

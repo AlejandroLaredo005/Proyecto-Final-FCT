@@ -579,10 +579,18 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
-  /// Lógica para usar un DateFormat para adaptar la fecha al formato que queremos
-  String _formatDateTime(DateTime dt) {
-    final df = DateFormat('MMM dd, yyyy  •  HH:mm');
-    return df.format(dt);
+  /// Lógica para usar un DateFormat para adaptar la fecha al formato que queremos (Incluyendo hora)
+  String _formatDateTime(DateTime dateTime) {
+    final locale = Localizations.localeOf(context).languageCode;
+    final dateFormat = DateFormat('d MMMM yyyy • HH:mm', locale);
+    return dateFormat.format(dateTime);
+  }
+
+  /// Lógica para usar un DateFormat para adaptar la fecha al formato que queremos (Solo dia, mes y año)
+  String _formatDate(DateTime dateTime) {
+    final locale = Localizations.localeOf(context).languageCode;
+    final dateFormat = DateFormat('d MMMM yyyy', locale);
+    return dateFormat.format(dateTime);
   }
 
   /// Muestra un diálogo de solo lectura con detalles de un recordatorio.
@@ -712,21 +720,73 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       : 'No hay pendientes'),
                 );
               }
-              return ListView.builder(
-                itemCount: docs.length,
-                itemBuilder: (context, i) {
-                  final doc    = docs[i];
-                  final data   = doc.data()! as Map<String, dynamic>;
-                  final title  = data['title'] as String? ?? '';
-                  final ts     = data['timestamp'] as Timestamp;
-                  final date   = ts.toDate();
-                  final done   = data['completed']  as bool? ?? false;
-                  final id      = doc.id;
-                  final description = data['description'] as String?;
-                  final completed   = data['completed'] as bool? ?? false;
+              
+              // Agrupar por día (solo año/mes/día)
+              final Map<DateTime, List<QueryDocumentSnapshot>> grouped = {};
+              for (final doc in docs) {
+                final data = doc.data()! as Map<String, dynamic>;
+                final Timestamp ts = data['timestamp'] as Timestamp;
+                final DateTime fullDate = ts.toDate();
+                final DateTime dayKey = DateTime(fullDate.year, fullDate.month, fullDate.day);
+                grouped.putIfAbsent(dayKey, () => []).add(doc);
+              }
 
-                  return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+              // Ordenar las claves (fechas) ascendentemente
+              final sortedKeys = grouped.keys.toList()..sort();
+
+              // Construir la lista de widgets con encabezados por fecha
+              final List<Widget> children = [];
+              for (final day in sortedKeys) {
+                // Formato de la cabecera
+                final String header = _formatDate(day);
+
+                children.add(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          header,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        // Contador de recordatorios de ese día
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${grouped[day]!.length}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+
+                // Espacio pequeño
+                children.add(const SizedBox(height: 4));
+
+                // Añadir cada recordatorio de ese día
+                for (final doc in grouped[day]!) {
+                  final data = doc.data()! as Map<String, dynamic>;
+                  final title = data['title'] as String? ?? '';
+                  final ts = data['timestamp'] as Timestamp;
+                  final date = ts.toDate();
+                  final done = data['completed'] as bool? ?? false;
+                  final id = doc.id;
+                  final description = data['description'] as String?;
+                  final completed = data['completed'] as bool? ?? false;
+
+                  children.add(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       child: _ReminderCard(
                         id: id,
                         title: title,
@@ -747,13 +807,22 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           _showViewReminderDialog(id, title, date, description, completed);
                         },
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                    ),
+                  );
+                }
+
+                // Separador entre días
+                children.add(const SizedBox(height: 8));
+                children.add(const Divider(height: 1));
+              }
+
+              return ListView(
+                children: children,
+              );
+            },
+          ),   
+        ),  
+      ],
       ),
     );
   }
