@@ -144,6 +144,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _loading = true);
     try {
       final uid = user.uid;
+
+       // 1) Borro los recordatorios del usuario en batches
+      final remindersRef = FirebaseFirestore.instance.collection('reminders')
+        .where('userId', isEqualTo: uid);
+
+      // Borro por lotes para tener mas seguridad
+      const int batchSize = 400; 
+      while (true) {
+        final snapshot = await remindersRef.limit(batchSize).get();
+        if (snapshot.docs.isEmpty) break;
+
+        final WriteBatch batch = FirebaseFirestore.instance.batch();
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+        // Pequeño delay para garantizar seguridad
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
+      // Elimina el uid de los arrays 'supervisors' de otros usuarios
+      final usersCollection = FirebaseFirestore.instance.collection('users');
+
+      // Buscar todos los usuarios que tengan este uid en su array 'supervisors'
+      final snap = await usersCollection
+        .where('supervisors', arrayContains: uid)
+        .get();
+
+      // Borra por lote
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      for (var doc in snap.docs) {
+        batch.update(doc.reference, {
+          'supervisors': FieldValue.arrayRemove([uid]),
+        });
+      }
+
+      // Ejecuta el batch si hay docs
+      if (snap.docs.isNotEmpty) {
+        await batch.commit();
+      }
+
+      // Elimino sus fotos en firebase storage
+      final storageRef = FirebaseStorage.instance.ref().child('users').child(uid);
+
+      try {
+        final listResult = await storageRef.listAll();
+
+        for (var fileRef in listResult.items) {
+          await fileRef.delete();
+        }
+
+      } catch (e) {
+        debugPrint('⚠ Error al borrar fotos del usuario $uid: $e');
+      }
+
       // Eliminar documento en Firestore
       await _firestore.collection('users').doc(uid).delete();
       // Eliminar usuario de Auth
