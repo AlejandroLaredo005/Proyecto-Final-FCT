@@ -310,6 +310,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
+              scrollable: true,
               title: const Text('Editar recordatorio'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -425,132 +426,140 @@ class _RemindersScreenState extends State<RemindersScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
+              scrollable: true, 
               title: const Text('Nuevo recordatorio'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Título del recordatorio',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: _descriptionController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción (opcional)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Row(
+              content: SingleChildScrollView(
+                // Padding que mueve el contenido hacia arriba cuando aparece el teclado
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text('Fecha: ${selectedDate.toLocal().toString().split(' ')[0]}'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                          );
-                          if (pickedDate != null) {
-                            setState(() => selectedDate = pickedDate);
-                          }
-                        },
-                        child: const Text('Seleccionar'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text('Hora: ${selectedTime.format(context)}'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final pickedTime = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime,
-                          );
-                          if (pickedTime != null) {
-                            setState(() => selectedTime = pickedTime);
-                          }
-                        },
-                        child: const Text('Seleccionar'),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Selector de recurrencia
-                  DropdownButtonFormField<String>(
-                    value: _recurrence,
-                    decoration: const InputDecoration(labelText: 'Repetir'),
-                    items: const [
-                      DropdownMenuItem(value: 'none', child: Text('Sin repetición')),
-                      DropdownMenuItem(value: 'weekly', child: Text('Semanal')),
-                      DropdownMenuItem(value: 'daily', child: Text('Diaria')),
-                      DropdownMenuItem(value: 'custom', child: Text('Cada X días')),
-                    ],
-                    onChanged: (v) => setState(() => _recurrence = v!),
-                  ),
-
-                  // Si es custom, pedir intervalo
-                  if (_recurrence == 'custom') ...[
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      const Text('Intervalo (días):'),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 60,
-                        child: TextField(
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(isDense: true),
-                          onChanged: (txt) {
-                            final val = int.tryParse(txt);
-                            if (val != null && val > 0) setState(() => _customIntervalDays = val);
-                          },
-                          controller: TextEditingController(text: '$_customIntervalDays'),
+                      TextField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Título del recordatorio',
+                          border: OutlineInputBorder(),
                         ),
                       ),
-                    ]),
-                  ],
+                      const SizedBox(height: 16),
 
-                  // Si elige semanal, diaria o custom, pedimos fecha fin
-                  if (_recurrence != 'none') ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(_recurrenceEndDate == null
-                              ? 'Fecha de fin: --/--/----'
-                              : 'Fin: ${_recurrenceEndDate!.toLocal().toString().split(" ")[0]}'),
+                      TextField(
+                        controller: _descriptionController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Descripción (opcional)',
+                          border: OutlineInputBorder(),
                         ),
-                        TextButton(
-                          onPressed: () async {
-                            final end = await showDatePicker(
-                              context: context,
-                              initialDate: selectedDate,
-                              firstDate: selectedDate,
-                              lastDate: DateTime(2100),
-                            );
-                            if (end != null) setState(() => _recurrenceEndDate = end);
-                          },
-                          child: const Text('Seleccionar fin'),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Fecha: ${selectedDate.toLocal().toString().split(' ')[0]}'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                              );
+                              if (pickedDate != null) {
+                                setState(() => selectedDate = pickedDate);
+                              }
+                            },
+                            child: const Text('Seleccionar'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Hora: ${selectedTime.format(context)}'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: selectedTime,
+                              );
+                              if (pickedTime != null) {
+                                setState(() => selectedTime = pickedTime);
+                              }
+                            },
+                            child: const Text('Seleccionar'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Selector de recurrencia
+                      DropdownButtonFormField<String>(
+                        value: _recurrence,
+                        decoration: const InputDecoration(labelText: 'Repetir'),
+                        items: const [
+                          DropdownMenuItem(value: 'none', child: Text('Sin repetición')),
+                          DropdownMenuItem(value: 'weekly', child: Text('Semanal')),
+                          DropdownMenuItem(value: 'daily', child: Text('Diaria')),
+                          DropdownMenuItem(value: 'custom', child: Text('Cada X días')),
+                        ],
+                        onChanged: (v) => setState(() => _recurrence = v!),
+                      ),
+
+                      // Si es custom, pedir intervalo
+                      if (_recurrence == 'custom') ...[
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          const Text('Intervalo (días):'),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 60,
+                            child: TextField(
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(isDense: true),
+                              onChanged: (txt) {
+                                final val = int.tryParse(txt);
+                                if (val != null && val > 0) setState(() => _customIntervalDays = val);
+                              },
+                              controller: TextEditingController(text: '$_customIntervalDays'),
+                            ),
+                          ),
+                        ]),
+                      ],
+
+                      // Si elige semanal, diaria o custom, pedimos fecha fin
+                      if (_recurrence != 'none') ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(_recurrenceEndDate == null
+                                ? 'Fecha de fin: --/--/----'
+                                : 'Fin: ${_recurrenceEndDate!.toLocal().toString().split(" ")[0]}'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                final end = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDate,
+                                  firstDate: selectedDate,
+                                  lastDate: DateTime(2100),
+                                );
+                                if (end != null) setState(() => _recurrenceEndDate = end);
+                              },
+                              child: const Text('Seleccionar fin'),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                ],
+                    ],
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
