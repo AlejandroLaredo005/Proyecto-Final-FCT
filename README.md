@@ -4,7 +4,7 @@ Aplicación móvil desarrollada en **Flutter** con **Firebase**. Permite crear y
 
 ---
 
-## 📌 Descripción breve
+## 📌 Descripción
 
 **Recordatorios y Control** es una app para gestionar recordatorios personales y permitir la supervisión entre usuarios permitiendo ver los recordatorios de otra persona gracias a un **codigo de supervision** de 6 digitos que se encontrará en el perfil y permitiendo poner notificaciones para comprobar si se realizan las tareas de esos usuarios. Incluye notificaciones programadasy recurrencia en recordatorios.
 
